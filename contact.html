@@ -43,6 +43,7 @@
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
+body{overflow-anchor:none}
 html,body{min-height:100%}
 body{margin:0;background:var(--ground);color:var(--bone);
   font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.7;
@@ -116,6 +117,8 @@ body{min-height:100vh;min-height:100svh}
 .panel{background:var(--surface);padding:clamp(40px,5vw,84px) var(--gut) clamp(40px,5vw,72px);
   display:flex;align-items:center}
 .panel-in{width:100%;max-width:620px;margin:0 auto}
+/* après envoi : le remerciement reste en haut de la colonne, là où commençait le formulaire (il ne « descend » plus) */
+.panel.is-done{align-items:flex-start}
 
 .form{margin:26px 0 0;display:grid;gap:clamp(20px,2.2vw,28px)}
 .row{display:grid;gap:clamp(20px,2.2vw,28px);grid-template-columns:1fr 1fr}
@@ -702,6 +705,7 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
   var again=document.getElementById('doneAgain');
   if(again) again.addEventListener('click', function(){
     document.getElementById('formDone').hidden=true; f.hidden=false;
+    var pn2=f.closest('.panel'); if(pn2) pn2.classList.remove('is-done');
     var sp=document.querySelector('.split'); if(sp) sp.style.minHeight='';
     var lab=f.previousElementSibling; if(lab) lab.hidden=false;
     document.getElementById('f-name').focus();
@@ -743,14 +747,17 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     var done=function(ok){
       delete f.dataset.busy; btn.disabled=false; lbl.textContent=I18N.tr('send','Envoyer');
       if(ok){
+        var y0=window.pageYOffset||document.documentElement.scrollTop||0;
         f.reset(); note.textContent='';
         var d=document.getElementById('formDone');
         /* écran large : la colonne photo garde la hauteur du formulaire, le texte reste sous le visage */
         var sp=document.querySelector('.split'); if(sp && window.matchMedia('(min-width:981px)').matches) sp.style.minHeight=sp.offsetHeight+'px';
         f.hidden=true; var lab=f.previousElementSibling; if(lab && lab.classList.contains('label')) lab.hidden=true;
+        var pn=f.closest('.panel'); if(pn) pn.classList.add('is-done');
         d.hidden=false;
         d.querySelectorAll('*').forEach(function(el){ el.style.animation='none'; void el.offsetWidth; el.style.animation=''; });
-        try{ d.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){}
+        /* la page ne bouge pas : on remet la position de défilement exactement où elle était (instantané, sans animation) */
+        try{ window.scrollTo({top:y0,left:0,behavior:'instant'}); }catch(e){ window.scrollTo(0,y0); }
       } else {
         note.innerHTML=I18N.tr('errSend','L’envoi n’a pas abouti. Écrivez-nous directement : ')
           +'<a href="mailto:hi@nomoremusic.fr">hi@nomoremusic.fr</a>';
