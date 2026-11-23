@@ -97,6 +97,15 @@ main{padding:clamp(20px,3vw,34px) var(--gut) calc(60px + env(safe-area-inset-bot
 .fields{display:grid;gap:8px;min-width:0}
 .fields.two{grid-template-columns:1fr 1fr}
 .fields.three{grid-template-columns:.6fr 1fr 1fr}
+.msg{grid-template-columns:1fr auto}
+.msg-top{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.msg-top b{font-weight:500;font-size:14px;letter-spacing:.02em}
+.msg-top a{color:var(--amber-soft);text-decoration:none;font-size:12.5px}
+.msg-top a:hover{text-decoration:underline}
+.msg-top time{margin-left:auto;font-size:11px;color:var(--mute);letter-spacing:.08em}
+.msg-meta{margin:6px 0 0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.msg-body{margin:10px 0 0;font-size:13.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word;color:rgba(237,230,218,.86)}
+.msg-warn{display:inline-block;margin-top:8px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#e0675d}
 .tools{display:flex;flex-direction:row;gap:5px;align-items:center;align-self:center}
 
 label.f{display:grid;gap:4px;min-width:0}
@@ -188,6 +197,7 @@ input::placeholder{color:rgba(141,148,143,.5)}
     <button class="tab" role="tab" data-p="unreleased" aria-selected="false">Unreleased</button>
     <button class="tab" role="tab" data-p="discography" aria-selected="false">Discographie</button>
     <button class="tab" role="tab" data-p="refs" aria-selected="false">Références</button>
+    <button class="tab" role="tab" data-p="messages" aria-selected="false">Messages</button>
   </nav>
 </header>
 
@@ -241,6 +251,13 @@ input::placeholder{color:rgba(141,148,143,.5)}
     </div>
     <div class="rows" id="l-refs"></div>
   </section>
+  <section class="panel" id="p-messages" hidden>
+    <div class="panel-head">
+      <div><h2>Messages</h2><p>Les demandes envoyées depuis le formulaire du site. Chaque message est conservé ici, même si l'e-mail n'a pas pu partir.</p></div>
+      <button class="btn" type="button" id="msgReload">Actualiser</button>
+    </div>
+    <div class="rows" id="l-messages"></div>
+  </section>
 </main>
 
 <div class="flash" id="flash" role="status" aria-live="polite"></div>
@@ -279,6 +296,7 @@ input::placeholder{color:rgba(141,148,143,.5)}
   });
 
   var COLS = ['agenda','gallery','unreleased','discography','refs'];
+  var PANELS = COLS.concat(['messages']);
   var db=null, assets=null, state={}, current='agenda';
   var gate=document.getElementById('gate'), gateMsg=document.getElementById('gateMsg');
 
@@ -561,12 +579,47 @@ input::placeholder{color:rgba(141,148,143,.5)}
     fetch('/api/logout',{method:'POST',credentials:'same-origin'}).catch(function(){}).then(function(){ location.reload(); });
   });
 
+  /* ---------- messages du formulaire ---------- */
+  function fmtWhen(iso){
+    try{ return new Date(iso).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso||''; }
+  }
+  function loadMessages(){
+    var el=document.getElementById('l-messages'); el.innerHTML='<p class="empty">Chargement…</p>';
+    fetch('/api/messages',{credentials:'same-origin',cache:'no-store'}).then(function(r){
+      if(r.status===401){ window.dispatchEvent(new Event('nomore-unauth')); throw new Error('auth'); }
+      return r.json();
+    }).then(function(d){
+      var list=(d&&d.messages)||[];
+      if(!list.length){ el.innerHTML='<p class="empty">Aucun message pour le moment.</p>'; return; }
+      el.innerHTML=list.map(function(m,i){
+        return '<div class="row msg" data-i="'+i+'"><div>'
+          +'<div class="msg-top"><b>'+esc(m.name)+'</b><a href="mailto:'+esc(m.email)+'">'+esc(m.email)+'</a><time>'+esc(fmtWhen(m.at))+'</time></div>'
+          +'<p class="msg-meta">'+esc(m.type||'')+(m.when?' · '+esc(m.when):'')+(m.where?' · '+esc(m.where):'')+'</p>'
+          +(m.message?'<p class="msg-body">'+esc(m.message)+'</p>':'')
+          +(m.notified===false?'<span class="msg-warn">E-mail de notification non envoyé</span>':'')
+          +'</div><div class="tools"><button class="icon" type="button" data-del="'+esc(m.id)+'" aria-label="Supprimer">&#10005;</button></div></div>';
+      }).join('');
+    }).catch(function(e){ if(!e||e.message!=='auth') el.innerHTML='<p class="empty">Impossible de charger les messages.</p>'; });
+  }
+  document.getElementById('msgReload').addEventListener('click', loadMessages);
+  document.getElementById('l-messages').addEventListener('click', function(e){
+    var b=e.target.closest('[data-del]'); if(!b) return;
+    if(b.getAttribute('data-armed')==='1'){
+      fetch('/api/messages',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({delete:b.getAttribute('data-del')})})
+        .then(function(r){ if(!r.ok) throw 0; flash('Supprimé'); loadMessages(); }).catch(function(){ flash('Suppression impossible','err'); });
+    } else {
+      b.setAttribute('data-armed','1'); b.setAttribute('data-old',b.innerHTML); b.textContent='Confirmer';
+      b._t=setTimeout(function(){ b.removeAttribute('data-armed'); b.innerHTML=b.getAttribute('data-old')||'&#10005;'; }, 3500);
+    }
+  });
+
   /* ---------- onglets ---------- */
   document.getElementById('tabs').addEventListener('click', function(e){
     var b=e.target.closest('.tab'); if(!b) return;
     current=b.getAttribute('data-p');
     document.querySelectorAll('.tab').forEach(function(t){ t.setAttribute('aria-selected', t===b?'true':'false'); });
-    COLS.forEach(function(c){ document.getElementById('p-'+c).hidden = (c!==current); });
+    PANELS.forEach(function(c){ document.getElementById('p-'+c).hidden = (c!==current); });
+    if(current==='messages') loadMessages();
     try{ localStorage.setItem('nomore-tab', current); }catch(err){}
   });
 
@@ -582,10 +635,11 @@ input::placeholder{color:rgba(141,148,143,.5)}
           .then(function(a){ assets=a; return Promise.all(COLS.map(load)); })
           .then(function(){
             gate.hidden=true;
-            try{ var t=localStorage.getItem('nomore-tab'); if(t && COLS.indexOf(t)>=0) current=t; }catch(err){}
+            try{ var t=localStorage.getItem('nomore-tab'); if(t && PANELS.indexOf(t)>=0) current=t; }catch(err){}
             document.querySelectorAll('.tab').forEach(function(t){ t.setAttribute('aria-selected', t.getAttribute('data-p')===current?'true':'false'); });
-            COLS.forEach(function(c){ document.getElementById('p-'+c).hidden = (c!==current); });
+            PANELS.forEach(function(c){ document.getElementById('p-'+c).hidden = (c!==current); });
             renderAll();
+            if(current==='messages') loadMessages();
           });
       })
       .catch(function(e){ started=false; fail('Connexion à la base impossible ('+(e&&e.code||'erreur')+').'); });

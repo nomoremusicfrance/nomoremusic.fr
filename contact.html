@@ -131,6 +131,13 @@ body{min-height:100vh;min-height:100svh}
 @media (max-width:900px), (hover:none){ .field input,.field textarea{font-size:16px} }
 .field input:focus,.field textarea:focus{outline:none;border-bottom-color:var(--amber-soft)}
 .field:focus-within label{color:var(--amber-soft)}
+.field input:-webkit-autofill,.field input:-webkit-autofill:hover,.field input:-webkit-autofill:focus,.field textarea:-webkit-autofill{
+  -webkit-text-fill-color:var(--bone);caret-color:var(--bone);
+  -webkit-box-shadow:0 0 0 1000px var(--ground) inset;box-shadow:0 0 0 1000px var(--ground) inset;
+  transition:background-color 99999s ease-in-out 0s}
+.mailto{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+.mailto:focus{outline:0}
+::selection{background:rgba(201,153,92,.38);color:var(--bone)}
 .field input::placeholder,.field textarea::placeholder{color:rgba(141,148,143,.55)}
 .field.err input,.field.err textarea{border-bottom-color:#d4574e}
 .field.err label{color:#d4574e}
@@ -744,18 +751,30 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     /* délai maximum : si le service ne répond pas, le bouton ne reste jamais bloqué sur « Envoi… » */
     var finished=false, ctl=('AbortController' in window) ? new AbortController() : null;
     var fin=function(ok){ if(finished) return; finished=true; clearTimeout(tm); done(ok); };
-    var tm=setTimeout(function(){ try{ if(ctl) ctl.abort(); }catch(e){} fin(false); }, 15000);
-    try{
-      fetch('https://formsubmit.co/ajax/hi@nomoremusic.fr',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Accept':'application/json'},
-        body:JSON.stringify(payload),
-        signal: ctl ? ctl.signal : undefined
+    var tm=setTimeout(function(){ try{ if(ctl) ctl.abort(); }catch(e){} fin(false); }, 25000);
+    /* 1) notre propre service (/api/contact) : le message est enregistré puis envoyé par e-mail */
+    function viaApi(){
+      return fetch('/api/contact',{
+        method:'POST', headers:{'Content-Type':'application/json'}, signal: ctl ? ctl.signal : undefined,
+        body:JSON.stringify({name:name,email:mail,type:type,when:when,where:where,message:msg,_honey:val('f-hp'),lang:(window.I18N&&I18N.lang)||'fr'})
+      }).then(function(r){
+        if(r.status===404||r.status===405) return null;                      /* pas de service ici : on bascule sur l'envoi direct */
+        return r.json().then(function(j){ return r.ok && j && j.ok===true; }, function(){ return null; });
+      }, function(){ return null; });
+    }
+    /* 2) envoi direct vers FormSubmit (repli, ex. aperçu sans service) */
+    function direct(){
+      return fetch('https://formsubmit.co/ajax/hi@nomoremusic.fr',{
+        method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'},
+        body:JSON.stringify(payload), signal: ctl ? ctl.signal : undefined
       }).then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){
         var ok=r.ok && String(j.success)==='true';
         if(!ok){ try{ console.warn('Formulaire : envoi refusé', r.status, j && j.message); }catch(e){} }
-        fin(ok);
-      }); }).catch(function(e){ try{ console.warn('Formulaire : envoi impossible', e); }catch(x){} fin(false); });
+        return ok;
+      }); }).catch(function(e){ try{ console.warn('Formulaire : envoi impossible', e); }catch(x){} return false; });
+    }
+    try{
+      viaApi().then(function(res){ return res===null ? direct() : res; }).then(fin, function(){ fin(false); });
     }catch(err){ fin(false); }
   });
 })();

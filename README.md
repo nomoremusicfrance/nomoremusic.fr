@@ -9,8 +9,8 @@ Solutions fiables :
 - **GitHub Desktop** (ou `git`) : « Add local repository » sur le dossier, commit, push — aucune limite.
 - ou **sans GitHub** : dans le dossier, `npx vercel` (puis `npx vercel --prod`).
 - ou par navigateur, en plusieurs envois : (1) tous les fichiers à la racine + `api/` + `lib/`,
-  (2) `assets/` en deux fois, (3) `audio/`. Vérifie ensuite sur GitHub que `api/` contient 7 fichiers
-  (data-js.js, data.js, db.js, login.js, logout.js, session.js, upload.js) et `lib/` 3 fichiers
+  (2) `assets/` en deux fois, (3) `audio/`. Vérifie ensuite sur GitHub que `api/` contient 9 fichiers
+  (contact.js, data-js.js, data.js, db.js, login.js, logout.js, messages.js, session.js, upload.js) et `lib/` 3 fichiers
   (auth.js, db.js, store.js).
 
 ## 2. Déployer sur Vercel
@@ -30,9 +30,15 @@ Solutions fiables :
 - Fichiers envoyés : images et audio jusqu'à 40 Mo, stockés dans Vercel Blob.
 
 ## 4. Formulaire de contact
-formsubmit.co → hi@nomoremusic.fr. Au premier envoi, clique sur le mail d'activation reçu.
+Chaque demande est **d'abord enregistrée** (onglet **Messages** de /admin : rien n'est jamais perdu), puis envoyée
+par e-mail à hi@nomoremusic.fr :
+- par défaut via FormSubmit : au tout premier envoi, FormSubmit envoie un mail d'activation à hi@nomoremusic.fr
+  → clique sur le lien (vérifie les spams), ensuite les notifications arrivent ;
+- option plus fiable : crée un compte gratuit sur resend.com, copie la clé API et ajoute dans Vercel
+  `RESEND_API_KEY` (et `CONTACT_TO` si l'adresse de réception change). Redéploie.
+Dans l'admin, un message marqué « E-mail de notification non envoyé » est bien enregistré mais l'e-mail n'est pas parti.
 
 ## Contenu
 index.html · contact.html · admin.html · 404.html · data.js · i18n.js · nomore-db.js (pont site ↔ API) ·
-api/ (data-js, data, db, login, logout, session, upload) · lib/ (auth, db, store) · assets/ · audio/ ·
+api/ (contact, data-js, data, db, login, logout, messages, session, upload) · lib/ (auth, db, store) · assets/ · audio/ ·
 vercel.json · package.json · robots.txt · sitemap.xml · favicons
