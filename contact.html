@@ -131,10 +131,15 @@ body{min-height:100vh;min-height:100svh}
 @media (max-width:900px), (hover:none){ .field input,.field textarea{font-size:16px} }
 .field input:focus,.field textarea:focus{outline:none;border-bottom-color:var(--amber-soft)}
 .field:focus-within label{color:var(--amber-soft)}
-.field input:-webkit-autofill,.field input:-webkit-autofill:hover,.field input:-webkit-autofill:focus,.field textarea:-webkit-autofill{
-  -webkit-text-fill-color:var(--bone);caret-color:var(--bone);
-  -webkit-box-shadow:0 0 0 1000px var(--ground) inset;box-shadow:0 0 0 1000px var(--ground) inset;
-  transition:background-color 99999s ease-in-out 0s}
+.field input:-webkit-autofill,.field input:-webkit-autofill:hover,.field input:-webkit-autofill:focus,.field input:-webkit-autofill:active,
+.field textarea:-webkit-autofill,.field textarea:-webkit-autofill:hover,.field textarea:-webkit-autofill:focus,.field textarea:-webkit-autofill:active{
+  /* remplissage automatique (iPhone, Safari, Chrome) : plus de cadre bleu/blanc, on garde le fond sombre et le texte clair */
+  -webkit-text-fill-color:var(--bone) !important;caret-color:var(--bone) !important;
+  -webkit-box-shadow:0 0 0 1000px var(--surface) inset !important;box-shadow:0 0 0 1000px var(--surface) inset !important;
+  border-radius:0 !important;
+  transition:background-color 600000s ease-in-out 0s,color 600000s ease-in-out 0s}
+.field input:-internal-autofill-selected,.field input:-internal-autofill-previewed{
+  -webkit-text-fill-color:var(--bone) !important;-webkit-box-shadow:0 0 0 1000px var(--surface) inset !important;box-shadow:0 0 0 1000px var(--surface) inset !important}
 .mailto{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
 .mailto:focus{outline:0}
 ::selection{background:rgba(201,153,92,.38);color:var(--bone)}
