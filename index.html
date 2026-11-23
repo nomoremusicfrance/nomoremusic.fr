@@ -1009,7 +1009,7 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
   /* ---- données : contenu par défaut, remplacé par la base si elle est alimentée ---- */
   var D = window.NOMORE_DEFAULTS || {discography:[],unreleased:[],gallery:[],refs:[],agenda:[]};
   var REFRESH=[];
-  function u(v){ return !v ? '' : (/^[0-9a-f]{32}$/.test(v) ? '/_blob/'+v : v); }
+  function u(v){ if(!v) return ''; if(/^[0-9a-f]{32}$/.test(v)) return '/_blob/'+v; /* version : évite qu'un navigateur garde en cache un ancien « introuvable » */ return (/^(assets|audio)\//.test(v) && v.indexOf('?')<0) ? v+'?v=11' : v; }
   function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   /* l'audio ajouté depuis le dashboard est stocké encodé : on le reconstitue à la volée */
   var AU_CACHE={};
