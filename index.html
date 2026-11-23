@@ -1748,12 +1748,30 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
   }, true);
   document.addEventListener('keydown', function(e){ if(e.key==='Escape') setMenu(false); });
 
+  /* ---- « Découvrir Nomore » : on arrive pile sur les deux pôles, photos alignées, à une même marge sous le bord haut ---- */
+  function polesY(){
+    var f=document.querySelector('#poles figure'); if(!f) return null;
+    var margin=Math.round(Math.max(28, Math.min(56, window.innerHeight*0.05)));
+    return Math.max(0, Math.round(f.getBoundingClientRect().top + window.pageYOffset - margin));
+  }
+  function goPoles(){
+    var y=polesY(); if(y==null) return;
+    var calm=window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+    window.scrollTo({top:y, behavior:calm?'auto':'smooth'});
+    /* contrôle final : si la mise en page a bougé pendant le défilement (images, barre d'adresse mobile), on se recale */
+    setTimeout(function(){
+      var y2=polesY();
+      if(y2!=null && Math.abs(window.pageYOffset-y2)>2 && Math.abs(window.pageYOffset-y2)<260) window.scrollTo({top:y2, behavior:'auto'});
+    }, calm?60:1100);
+  }
+
   /* ---- smooth in-page scroll ---- */
   document.querySelectorAll('a[href^="#"]').forEach(function(a){
     a.addEventListener('click', function(e){
       var id=a.getAttribute('href');
       if(id==='#'){ e.preventDefault(); return; }
       var t=document.querySelector(id);
+      if(id==='#poles' && t){ e.preventDefault(); goPoles(); return; }
       if(t){ e.preventDefault(); t.scrollIntoView({behavior:'smooth', block:'start'}); }
     });
   });
