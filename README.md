@@ -16,9 +16,11 @@ Solutions fiables :
 ## 2. Déployer sur Vercel
 1. vercel.com → *Add New → Project → Import* le dépôt. Framework : **Other**, aucune commande de build.
 2. Dans le projet : *Storage → Create Database → Blob*, accès **Public**, *Connect Project*
-   (Vercel ajoute `BLOB_READ_WRITE_TOKEN`).
+   (Vercel crée soit `BLOB_READ_WRITE_TOKEN`, soit — connexion OIDC — `BLOB_STORE_ID` ou `<PRÉFIXE>_STORE_ID`, par exemple `NOMORE_STORE_ID` :
+   le site gère les deux. Le stockage doit être connecté à l'environnement *Production*. Aucun stockage de secours : sans Blob, l'admin affiche une erreur.)
 3. *Settings → Environment Variables* : `ADMIN_PASSWORD` = ton mot de passe
-   (sans elle, l'ancien mot de passe du dashboard fonctionne). Optionnel : `ADMIN_SECRET` = longue phrase aléatoire.
+   (sans elle, l'ancien mot de passe du dashboard fonctionne). `ADMIN_SECRET` = longue phrase aléatoire : signe la connexion et chiffre les messages
+   du formulaire (au moins l'une des deux variables est obligatoire ; ne changez pas `ADMIN_SECRET` après coup, les anciens messages deviendraient illisibles).
 4. *Deployments → Redeploy*, puis *Settings → Domains* : ajoute `nomoremusic.fr`.
 
 ## 3. Utilisation de l'admin

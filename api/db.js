@@ -9,7 +9,9 @@ module.exports = async function (req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
   if (!auth.isAdmin(req)) return res.status(401).json({ error: 'unauthenticated' });
-  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+  let body;
+  try { body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}); }
+  catch (e) { return res.status(400).json({ error: 'bad_json', message: 'Requête illisible.' }); }
   const ops = Array.isArray(body.ops) ? body.ops : [];
   if (!ops.length || ops.length > 500) return res.status(400).json({ error: 'bad_ops' });
   try {
@@ -25,7 +27,9 @@ module.exports = async function (req, res) {
     await store.writeDb(state);
     res.status(200).json({ ok: true });
   } catch (e) {
-    console.error('db write failed', e);
-    res.status(500).json({ error: 'write_failed' });
+    console.error('db write failed', e && e.message);
+    const h = store.httpError(e);
+    h.body.message = 'Modification NON enregistrée. ' + h.body.message;
+    res.status(h.status).json(h.body);
   }
 };

@@ -50,7 +50,9 @@ module.exports = async function (req, res) {
     store.delFiles(names).catch(function () {});
     return res.status(200).json({ url: r.url });
   } catch (e) {
-    console.error('upload failed', e);
-    return res.status(500).json({ error: 'upload_failed' });
+    console.error('upload failed', e && e.message);
+    const h = store.httpError(e);
+    h.body.message = 'Fichier NON envoyé. ' + h.body.message;
+    return res.status(h.status).json(h.body);
   }
 };

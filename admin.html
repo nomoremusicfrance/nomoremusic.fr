@@ -152,6 +152,10 @@ input::placeholder{color:rgba(141,148,143,.5)}
   transition:opacity .3s,transform .3s;max-width:calc(100vw - 32px);text-align:center}
 .flash[data-on="true"]{opacity:1;transform:translate(-50%,0)}
 .flash[data-kind="err"]{border-color:var(--danger);color:#e6a48c}
+.alert{position:sticky;top:0;z-index:55;display:none;padding:12px 20px;background:#2a1713;border-bottom:1px solid var(--danger);
+  color:#e6a48c;font-size:12.5px;line-height:1.6;letter-spacing:.04em;text-align:center}
+.alert[data-on="true"]{display:block}
+.alert b{color:#f0b9a2;font-weight:500}
 .gate{margin:40px auto;max-width:520px;text-align:center;color:var(--mute);
   border:1px solid var(--hair);border-radius:3px;padding:34px 26px}
 .gate h2{font-family:var(--display);font-size:24px;color:var(--bone);letter-spacing:.1em;
@@ -182,6 +186,7 @@ input::placeholder{color:rgba(141,148,143,.5)}
 </div>
 
 
+<div class="alert" id="storeAlert" role="alert"></div>
 <header class="hdr">
   <a class="back" href="index.html">Retour au site</a>
   <div class="hdr-top">
@@ -203,7 +208,6 @@ input::placeholder{color:rgba(141,148,143,.5)}
 
 <main id="main">
   <div class="gate" id="gate">
-    <h2>Connexion à la base</h2>
     <p id="gateMsg">Chargement…</p>
   </div>
 
@@ -287,7 +291,8 @@ input::placeholder{color:rgba(141,148,143,.5)}
     e.preventDefault();
     fetch('/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw.value})})
       .then(function(r){
-        if(r.ok){ hideLock(); pw.value=''; lockErr.textContent=''; start(); }
+        if(r.ok){ hideLock(); pw.value=''; lockErr.textContent=''; start(); checkStorage(); }
+        else if(r.status===503){ r.json().catch(function(){ return {}; }).then(function(d){ lockErr.textContent=(d&&d.message)||'L’administration n’est pas configurée sur Vercel.'; }); }
         else { lockErr.textContent = r.status===401 ? 'Mot de passe incorrect.' : 'Connexion impossible, réessayez.'; pw.value=''; pw.focus(); }
       }).catch(function(){ lockErr.textContent='Connexion impossible, réessayez.'; });
   });
@@ -307,7 +312,34 @@ input::placeholder{color:rgba(141,148,143,.5)}
   function flash(msg, kind){
     flashEl.textContent=msg; flashEl.setAttribute('data-kind', kind||'ok');
     flashEl.setAttribute('data-on','true');
-    clearTimeout(flashT); flashT=setTimeout(function(){ flashEl.setAttribute('data-on','false'); }, kind==='err'?5200:2400);
+    clearTimeout(flashT); flashT=setTimeout(function(){ flashEl.setAttribute('data-on','false'); }, kind==='err'?9000:2400);
+  }
+  /* cause d'une erreur, en clair (le serveur renvoie un message précis pour le stockage) */
+  var WHY={network:'connexion au site impossible', too_large:'fichier trop lourd', unauthenticated:'session expirée, reconnectez-vous',
+    storage_not_configured:'le stockage Vercel Blob n’est pas configuré', storage_error:'le stockage Vercel Blob a refusé l’opération',
+    bad_json:'requête illisible', bad_ops:'requête invalide', bad_target:'requête invalide', bad_op:'requête invalide'};
+  function why(e){
+    if(!e) return 'erreur inconnue';
+    if(e.detail) return e.detail;
+    return WHY[e.code] || (e.status ? 'erreur serveur ('+e.status+')' : (e.code||'erreur inconnue'));
+  }
+  var alertEl=document.getElementById('storeAlert');
+  function storeAlert(msg){
+    if(!alertEl) return;
+    if(!msg){ alertEl.setAttribute('data-on','false'); alertEl.innerHTML=''; return; }
+    alertEl.innerHTML='<b>Les modifications ne sont pas enregistrées.</b> '+esc(msg);
+    alertEl.setAttribute('data-on','true');
+  }
+  function isStoreErr(e){ return !!(e && (e.code==='storage_not_configured' || e.code==='storage_error')); }
+  /* vérifie le stockage au chargement de l'admin (écriture, relecture, suppression d'un petit fichier de test) */
+  function checkStorage(){
+    fetch('/api/health',{credentials:'same-origin',cache:'no-store'}).then(function(r){
+      if(r.status===401){ window.dispatchEvent(new Event('nomore-unauth')); return null; }
+      return r.json().catch(function(){ return null; });
+    }).then(function(h){
+      if(!h) return;
+      storeAlert(h.ok ? '' : (h.message || 'Le stockage ne répond pas.'));
+    }).catch(function(){ storeAlert('Impossible de vérifier le stockage (connexion au site impossible).'); });
   }
   function fmtDur(d){ d=Math.round(d||0); return Math.floor(d/60)+':'+String(d%60).padStart(2,'0'); }
 
@@ -322,18 +354,19 @@ input::placeholder{color:rgba(141,148,143,.5)}
   }
   function save(col,row){
     var body={}; for(var k in row) if(k!=='__id') body[k]=row[k];
-    return ref(col,row.__id).set(body).catch(function(e){ flash('Enregistrement impossible ('+(e&&e.code||'erreur')+')','err'); throw e; });
+    return ref(col,row.__id).set(body).then(function(r){ if(alertEl && alertEl.getAttribute('data-on')==='true') storeAlert(''); return r; })
+      .catch(function(e){ flash('Enregistrement impossible : '+why(e),'err'); if(isStoreErr(e)) storeAlert(why(e)); throw e; });
   }
   function create(col,body){
     var r=db.collection(col).doc();
     body.order=(state[col]||[]).length ? Math.max.apply(null,state[col].map(function(x){return x.order||0;}))+1 : 0;
-    return r.set(body).then(function(){ return load(col); }).then(function(){ render(col); flash('Ajouté'); })
-      .catch(function(e){ flash('Ajout impossible ('+(e&&e.code||'erreur')+')','err'); });
+    return r.set(body).then(function(){ storeAlert(''); return load(col); }).then(function(){ render(col); flash('Ajouté'); })
+      .catch(function(e){ flash('Ajout impossible : '+why(e),'err'); if(isStoreErr(e)) storeAlert(why(e)); });
   }
   function remove(col,row){
-    return ref(col,row.__id).delete().then(function(){ return load(col); })
+    return ref(col,row.__id).delete().then(function(){ storeAlert(''); return load(col); })
       .then(function(){ render(col); flash('Supprimé'); })
-      .catch(function(e){ flash('Suppression impossible','err'); });
+      .catch(function(e){ flash('Suppression impossible : '+why(e),'err'); if(isStoreErr(e)) storeAlert(why(e)); });
   }
   function move(col,row,dir){
     var list=state[col], i=list.indexOf(row), j=i+dir;
@@ -354,14 +387,14 @@ input::placeholder{color:rgba(141,148,143,.5)}
   function uploadImage(file){
     return assets.upload(file).then(function(r){ return r.id; })
       .catch(function(e){
-        flash(e && e.code==='too_large' ? 'Image trop lourde (40 Mo maximum)' : 'Envoi impossible ('+(e&&e.code||'erreur')+')','err');
+        flash(e && e.code==='too_large' ? 'Image trop lourde (40 Mo maximum)' : 'Envoi impossible : '+why(e),'err'); if(isStoreErr(e)) storeAlert(why(e));
         throw e;
       });
   }
   function uploadAudio(file){
     if(file.size > 40*1024*1024){ flash('Fichier audio trop lourd (40 Mo maximum)','err'); return Promise.reject(new Error('size')); }
     return assets.upload(file).then(function(r){ return r.id; })
-      .catch(function(e){ flash(e && e.code==='too_large' ? 'Fichier audio trop lourd (40 Mo maximum)' : 'Envoi audio impossible ('+(e&&e.code||'erreur')+')','err'); throw e; });
+      .catch(function(e){ flash(e && e.code==='too_large' ? 'Fichier audio trop lourd (40 Mo maximum)' : 'Envoi audio impossible : '+why(e),'err'); if(isStoreErr(e)) storeAlert(why(e)); throw e; });
   }
   function analyse(file){
     return file.arrayBuffer().then(function(buf){
@@ -571,7 +604,7 @@ input::placeholder{color:rgba(141,148,143,.5)}
       }).then(function(){ return load(col); }).then(function(){ render(col); });
     });
     chain.then(function(){ flash('Contenu du site importé'); })
-         .catch(function(e){ flash('Import interrompu ('+(e&&e.code||'erreur')+')','err'); });
+         .catch(function(e){ flash('Import interrompu : '+why(e),'err'); if(isStoreErr(e)) storeAlert(why(e)); });
   });
 
   var lockOut=document.getElementById('lockOut');
@@ -587,11 +620,13 @@ input::placeholder{color:rgba(141,148,143,.5)}
     var el=document.getElementById('l-messages'); el.innerHTML='<p class="empty">Chargement…</p>';
     fetch('/api/messages',{credentials:'same-origin',cache:'no-store'}).then(function(r){
       if(r.status===401){ window.dispatchEvent(new Event('nomore-unauth')); throw new Error('auth'); }
-      return r.json();
+      return r.json().then(function(d){ if(!r.ok) { var er=new Error('http'); er.detail=d&&d.message; throw er; } return d; });
     }).then(function(d){
       var list=(d&&d.messages)||[];
       if(!list.length){ el.innerHTML='<p class="empty">Aucun message pour le moment.</p>'; return; }
       el.innerHTML=list.map(function(m,i){
+        if(m.unreadable) return '<div class="row msg" data-i="'+i+'"><div><p class="msg-meta">Message chiffré illisible (la clé ADMIN_SECRET a-t-elle été modifiée ?)</p></div>'
+          +'<div class="tools"><button class="icon" type="button" data-del="'+esc(m.id)+'" aria-label="Supprimer">&#10005;</button></div></div>';
         return '<div class="row msg" data-i="'+i+'"><div>'
           +'<div class="msg-top"><b>'+esc(m.name)+'</b><a href="mailto:'+esc(m.email)+'">'+esc(m.email)+'</a><time>'+esc(fmtWhen(m.at))+'</time></div>'
           +'<p class="msg-meta">'+esc(m.type||'')+(m.when?' · '+esc(m.when):'')+(m.where?' · '+esc(m.where):'')+'</p>'
@@ -599,14 +634,15 @@ input::placeholder{color:rgba(141,148,143,.5)}
           +(m.notified===false?'<span class="msg-warn">E-mail de notification non envoyé</span>':'')
           +'</div><div class="tools"><button class="icon" type="button" data-del="'+esc(m.id)+'" aria-label="Supprimer">&#10005;</button></div></div>';
       }).join('');
-    }).catch(function(e){ if(!e||e.message!=='auth') el.innerHTML='<p class="empty">Impossible de charger les messages.</p>'; });
+    }).catch(function(e){ if(!e||e.message!=='auth') el.innerHTML='<p class="empty">Impossible de charger les messages'+(e&&e.detail?' : '+esc(e.detail):'.')+'</p>'; });
   }
   document.getElementById('msgReload').addEventListener('click', loadMessages);
   document.getElementById('l-messages').addEventListener('click', function(e){
     var b=e.target.closest('[data-del]'); if(!b) return;
     if(b.getAttribute('data-armed')==='1'){
       fetch('/api/messages',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({delete:b.getAttribute('data-del')})})
-        .then(function(r){ if(!r.ok) throw 0; flash('Supprimé'); loadMessages(); }).catch(function(){ flash('Suppression impossible','err'); });
+        .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ if(!r.ok){ var er=new Error('http'); er.detail=d&&d.message; throw er; } flash('Supprimé'); loadMessages(); }); })
+        .catch(function(e){ flash('Suppression impossible'+(e&&e.detail?' : '+e.detail:''),'err'); });
     } else {
       b.setAttribute('data-armed','1'); b.setAttribute('data-old',b.innerHTML); b.textContent='Confirmer';
       b._t=setTimeout(function(){ b.removeAttribute('data-armed'); b.innerHTML=b.getAttribute('data-old')||'&#10005;'; }, 3500);
@@ -642,12 +678,12 @@ input::placeholder{color:rgba(141,148,143,.5)}
             if(current==='messages') loadMessages();
           });
       })
-      .catch(function(e){ started=false; fail('Connexion à la base impossible ('+(e&&e.code||'erreur')+').'); });
+      .catch(function(e){ started=false; fail('Chargement impossible : '+why(e)); if(isStoreErr(e)) storeAlert(why(e)); });
   }
   gate.hidden=false; gateMsg.textContent='Chargement…';
   document.getElementById('lock').hidden=true;
   fetch('/api/session',{credentials:'same-origin',cache:'no-store'}).then(function(r){ return r.json(); })
-    .then(function(s){ if(s && s.admin){ start(); } else { gate.hidden=true; showLock(); } })
+    .then(function(s){ if(s && s.admin){ start(); checkStorage(); } else { gate.hidden=true; showLock(); } })
     .catch(function(){ gate.hidden=true; showLock(); });
 })();
 </script>

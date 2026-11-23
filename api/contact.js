@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const store = require('../lib/store');
+const seal = require('../lib/seal');
 
 /* Formulaire de contact (public) : le message est d'abord ENREGISTRÉ (jamais perdu, visible dans /admin → Messages),
    puis envoyé par e-mail à hi@nomoremusic.fr (Resend si RESEND_API_KEY est défini, sinon FormSubmit). */
@@ -67,14 +68,15 @@ module.exports = async function (req, res) {
   const path = 'messages/' + stamp + '-' + crypto.randomBytes(8).toString('hex') + '.json';
   let saved = false, notified = false;
   try {
-    await store.putFile(path, Buffer.from(JSON.stringify(Object.assign({ at: now.toISOString() }, m))), 'application/json');
+    /* le stockage Blob est public : le message y est écrit CHIFFRÉ (lisible seulement depuis /admin) */
+    await store.putFile(path, seal.seal(Object.assign({ at: now.toISOString() }, m)), 'application/json');
     saved = true;
   } catch (e) { console.error('save failed', e && e.message); }
 
   notified = process.env.RESEND_API_KEY ? await viaResend(m) : await viaFormsubmit(m);
   if (saved && !notified) {
     /* trace dans le fichier : l'admin affiche « e-mail non envoyé » */
-    try { await store.putFile(path, Buffer.from(JSON.stringify(Object.assign({ at: now.toISOString(), notified: false }, m))), 'application/json'); } catch (e) {}
+    try { await store.putFile(path, seal.seal(Object.assign({ at: now.toISOString(), notified: false }, m)), 'application/json'); } catch (e) {}
   }
   if (!saved && !notified) return res.status(502).json({ ok: false, error: 'failed' });
   return res.status(200).json({ ok: true, saved: saved, notified: notified });

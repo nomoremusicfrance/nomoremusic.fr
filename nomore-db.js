@@ -5,7 +5,7 @@
   var IS_ADMIN = /^\/admin/.test(location.pathname);
   var CHUNK = 3.5 * 1024 * 1024;
 
-  function Err(code, status) { var e = new Error(code); e.code = code; e.status = status; return e; }
+  function Err(code, status, detail) { var e = new Error(code); e.code = code; e.status = status; e.detail = detail || ''; return e; }
   function unauth() {
     try { window.dispatchEvent(new Event('nomore-unauth')); } catch (e) {}
   }
@@ -15,10 +15,10 @@
       return r.text().then(function (t) {
         var body = null; try { body = t ? JSON.parse(t) : null; } catch (e) {}
         if (r.status === 401) { unauth(); throw Err('unauthenticated', 401); }
-        if (!r.ok) throw Err((body && body.error) || 'http_' + r.status, r.status);
+        if (!r.ok) throw Err((body && body.error) || 'http_' + r.status, r.status, body && body.message);
         return body;
       });
-    }, function () { throw Err('network', 0); });
+    }, function () { throw Err('network', 0, 'Impossible de joindre le site (connexion Internet ?).'); });
   }
 
   /* ---- lecture ---- */
