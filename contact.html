@@ -142,6 +142,11 @@ body{min-height:100vh;min-height:100svh}
   -webkit-box-shadow:0 0 0 1000px var(--surface) inset !important;box-shadow:0 0 0 1000px var(--surface) inset !important;
   border-radius:0 !important;
   transition:background-color 600000s ease-in-out 0s,color 600000s ease-in-out 0s}
+.field input:autofill,.field input:autofill:hover,.field input:autofill:focus,.field textarea:autofill{
+  -webkit-text-fill-color:var(--bone) !important;caret-color:var(--bone) !important;
+  -webkit-box-shadow:0 0 0 1000px var(--surface) inset !important;box-shadow:0 0 0 1000px var(--surface) inset !important;
+  border-radius:0 !important}
+.field input,.field textarea{background-color:transparent !important;background-image:none !important}
 .field input:-internal-autofill-selected,.field input:-internal-autofill-previewed{
   -webkit-text-fill-color:var(--bone) !important;-webkit-box-shadow:0 0 0 1000px var(--surface) inset !important;box-shadow:0 0 0 1000px var(--surface) inset !important}
 .mailto{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
@@ -701,8 +706,9 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
       var e=el(id); if(!e || !e.parentNode) return;
       var v=e.value, a=document.activeElement===e, s=null, se=null;
       try{ s=e.selectionStart; se=e.selectionEnd; }catch(x){}
-      var n=e.cloneNode(false); n.value=v;
+      var n=e.cloneNode(false); n.removeAttribute('style'); n.value=v;
       e.parentNode.replaceChild(n, e);
+      if(window.__nmObserve) window.__nmObserve(n);
       known[id]=v; rebuilt[id]++;
       if(a){ try{ n.focus({preventScroll:true}); if(s!=null) n.setSelectionRange(s,se); }catch(x){} }
     }
@@ -711,7 +717,20 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
       if(filled(e) || (e.value && e.value!==known[id])) rebuild(id);
       else if(!e.value) known[id]='';
     }
-    function sweep(){ IDS.forEach(check); }
+    /* Chrome (iPhone/Android) peint parfois les champs remplis avec un style en ligne (fond clair) : on l'efface dès qu'il apparaît */
+    function clean(e){
+      if(!e || !e.style) return;
+      var st=e.getAttribute('style'); if(!st) return;
+      ['background','background-color','background-image','box-shadow','outline','border-radius'].forEach(function(p){ e.style.removeProperty(p); });
+      if(!e.getAttribute('style')) e.removeAttribute('style');
+    }
+    function cleanAll(){ IDS.concat(['f-msg']).forEach(function(id){ clean(el(id)); }); }
+    try{
+      var mo=new MutationObserver(function(list){ list.forEach(function(m){ if(m.target && m.attributeName==='style') clean(m.target); }); });
+      IDS.concat(['f-msg']).forEach(function(id){ var e=el(id); if(e) mo.observe(e,{attributes:true,attributeFilter:['style']}); });
+      window.__nmObserve=function(e){ try{ mo.observe(e,{attributes:true,attributeFilter:['style']}); }catch(x){} };
+    }catch(x){}
+    function sweep(){ cleanAll(); IDS.forEach(check); }
     ['input','change','focus','blur','animationstart'].forEach(function(evn){
       document.addEventListener(evn, function(ev){
         var t=ev.target; if(!t || IDS.indexOf(t.id)<0) return;
