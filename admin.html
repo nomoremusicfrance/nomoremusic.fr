@@ -193,6 +193,7 @@ input::placeholder{color:rgba(141,148,143,.5)}
     <div class="brand"><img src="assets/logo.png" alt="Nomore" width="1400" height="205"><span>Dashboard</span></div>
     <div class="hdr-act">
       <button class="btn" id="seed" type="button" hidden style="display:none">Importer le contenu du site</button>
+      <button class="btn" id="exportBtn" type="button" title="Télécharge une copie de tout le contenu (dates, morceaux, photos, références, messages)">Exporter</button>
       <button class="btn ghost" id="lockOut" type="button">Verrouiller</button>
     </div>
   </div>
@@ -623,6 +624,41 @@ input::placeholder{color:rgba(141,148,143,.5)}
     chain.then(function(){ flash('Contenu du site importé'); })
          .catch(function(e){ flash('Import interrompu : '+why(e),'err'); if(isStoreErr(e)) storeAlert(why(e)); });
   });
+
+  /* ---------- sauvegarde : un seul fichier avec tout le contenu ---------- */
+  (function(){
+    var btn=document.getElementById('exportBtn'); if(!btn) return;
+    var label=btn.textContent, busy=false;
+    function say(t, ms){ btn.textContent=t; if(ms) setTimeout(function(){ btn.textContent=label; }, ms); }
+    function urls(o, out){
+      if(o && typeof o==='object'){ for(var k in o) urls(o[k], out); }
+      else if(typeof o==='string' && /^(https:\/\/[a-z0-9.-]+\.blob\.vercel-storage\.com\/|assets\/|audio\/)/i.test(o) && o.length<400) out[o]=1;
+    }
+    btn.addEventListener('click', function(){
+      if(busy || !db) return; busy=true; say('Export…');
+      Promise.all(COLS.map(load)).then(function(){
+        return fetch('/api/messages',{credentials:'same-origin',cache:'no-store'}).then(function(r){
+          return r.json().then(function(d){ return r.ok ? { list:(d&&d.messages)||[] } : { error:(d&&d.message)||('erreur '+r.status) }; });
+        }).catch(function(){ return { error:'connexion impossible' }; });
+      }).then(function(m){
+        var contenu={}, files={};
+        COLS.forEach(function(c){
+          contenu[c]=(state[c]||[]).map(function(r){ var o={}; for(var k in r) if(k!=='__id') o[k]=r[k]; urls(o, files); return o; });
+        });
+        var out={
+          site:'nomoremusic.fr', exporte_le:new Date().toISOString(), version:1,
+          contenu:contenu,
+          messages: m.list || [],
+          messages_note: m.error ? ('Messages non exportés : '+m.error) : (m.list.length>=150 ? 'Les 150 messages les plus récents.' : ''),
+          fichiers: Object.keys(files).sort()
+        };
+        var blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'}), a=document.createElement('a');
+        a.href=URL.createObjectURL(blob); a.download='nomore-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json';
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+        say(m.error ? 'Exporté (sans messages)' : 'Exporté', 3500);
+      }).catch(function(e){ say('Échec de l\'export', 3500); }).then(function(){ busy=false; });
+    });
+  })();
 
   var lockOut=document.getElementById('lockOut');
   if(lockOut) lockOut.addEventListener('click', function(){
