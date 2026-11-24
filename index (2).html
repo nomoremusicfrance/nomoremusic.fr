@@ -241,14 +241,6 @@ button.arrow-link{appearance:none;background:none;border:0;cursor:pointer;font-f
 #music figure img{object-position:50% 50%}
 #hour figure img{object-position:50% 55%}
 
-/* ---------- fil de progression ---------- */
-.prog{position:fixed;left:0;right:0;top:0;height:2px;z-index:96;pointer-events:none;
-  background:rgba(237,230,218,.05)}
-.prog i{display:block;height:100%;width:100%;transform:scaleX(0);transform-origin:left center;
-  background:linear-gradient(90deg,rgba(201,153,92,.5),var(--amber-soft))}
-
-
-
 /* ---------- grain : la texture des pochettes, posée sur tout le site ---------- */
 .grain{position:fixed;inset:-110px;z-index:95;pointer-events:none;opacity:.09;
   background-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMDAnIGhlaWdodD0nMjAwJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIHR5cGU9J2ZyYWN0YWxOb2lzZScgYmFzZUZyZXF1ZW5jeT0nMC45JyBudW1PY3RhdmVzPScyJyBzdGl0Y2hUaWxlcz0nc3RpdGNoJy8+PGZlQ29sb3JNYXRyaXggdHlwZT0nc2F0dXJhdGUnIHZhbHVlcz0nMCcvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPScyMDAnIGhlaWdodD0nMjAwJyBmaWx0ZXI9J3VybCgjbiknIG9wYWNpdHk9JzAuNScvPjwvc3ZnPg==");
@@ -295,6 +287,16 @@ button.arrow-link{appearance:none;background:none;border:0;cursor:pointer;font-f
 .unveil{opacity:0;transform:translateY(34px) scale(1.035);
   transition:opacity 1.25s cubic-bezier(.22,.7,.25,1),transform 1.25s cubic-bezier(.22,.7,.25,1)}
 .unveil.in{opacity:1;transform:none}
+/* agenda (« Prochaines dates ») : fondu long et montée très courte, courbe d'arrivée très douce */
+.gentle{opacity:0;transform:translateY(10px);
+  transition:opacity 1.7s cubic-bezier(.25,.46,.45,.94),transform 2s cubic-bezier(.16,1,.3,1)}
+.gentle.in{opacity:1;transform:none}
+/* photos des pôles (Music, Hour) : simple fondu très lent, avec un infime recul de l'image */
+.fade{opacity:0;transform:scale(1.015);
+  transition:opacity 1.9s cubic-bezier(.25,.46,.45,.94),transform 2.4s cubic-bezier(.16,1,.3,1)}
+.fade.in{opacity:1;transform:none}
+/* (la règle « .pillar figure » imposait sa propre transition et annulait le fondu : on la rend plus spécifique) */
+.pillar figure.fade{transition:opacity 1.9s cubic-bezier(.25,.46,.45,.94),transform 2.4s cubic-bezier(.16,1,.3,1),outline-color .6s ease}
 @media (prefers-reduced-motion:reduce){
   .reveal,.rise,.unveil{opacity:1;transform:none;filter:none}
 }
@@ -308,14 +310,13 @@ button.arrow-link{appearance:none;background:none;border:0;cursor:pointer;font-f
 .disc{overflow:hidden}
 /* bande défilante partout : 6 pochettes à l'écran sur ordinateur, 4 sur tablette, 2 sur mobile */
 .disc-grid{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;padding:0 0 10px;
-  scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;cursor:grab}
+  scroll-snap-type:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none;cursor:grab}
 .disc-grid::-webkit-scrollbar{display:none}
 .disc-grid.dragging{scroll-snap-type:none;cursor:grabbing}
 .disc-grid .rel{flex:0 0 calc((100% - 5 * 12px) / 6);scroll-snap-align:start}
 @media (max-width:1100px){
   .disc-grid{gap:10px}
-  .disc-grid .rel{flex-basis:calc((100% - 3 * 10px) / 4);scroll-snap-align:none}
-  .disc-grid .rel:nth-child(2n+1){scroll-snap-align:start;scroll-snap-stop:always}
+  .disc-grid .rel{flex-basis:calc((100% - 3 * 10px) / 4)}
 }
 @media (max-width:640px){
   .disc-grid .rel{flex-basis:calc((100% - 10px) / 2)}
@@ -422,10 +423,14 @@ button.rel{appearance:none;background:none;border:0;padding:0;text-align:center;
 .cell .arrow-link{margin-top:auto;padding-top:26px}
 
 .gal{--gn:4;--ggap:clamp(8px,1vw,14px);overflow-x:auto;overflow-y:hidden;
-  scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
+  scroll-snap-type:none;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
   scrollbar-width:none;cursor:grab}
 .gal::-webkit-scrollbar{display:none}
 .gal.dragging{scroll-snap-type:none;cursor:grabbing}
+/* tactile (téléphone, tablette) : défilement libre, sans aimant — la bande glisse avec l'élan du doigt, comme n'importe quelle liste */
+@media (hover:none) and (pointer:coarse), (max-width:640px){
+  .disc-grid,.gal{scroll-snap-type:none}
+}
 .gal-track{display:flex;gap:var(--ggap);width:100%}
 /* barre de progression sous les miniatures */
 /* barre de progression commune (galerie, discographie) : filet discret, curseur ambre qui suit le défilement */
@@ -966,7 +971,6 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
   <div class="pt-circle" id="portraitCircle"><img src="assets/portrait.jpg?v=5" alt="Nomore, DJ et producteur d’événements, casque sur l’oreille sous un projecteur ambré" data-i18n-attr="alt:portraitAlt" width="600" height="600" decoding="async"></div>
 </div>
 
-<div class="prog" aria-hidden="true"><i id="progBar"></i></div>
 <div class="grain" aria-hidden="true"></div>
 
 <footer class="ftr">
@@ -1090,6 +1094,26 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     });
   }
   function q(sel){ return document.querySelectorAll(sel); }
+  /* apparition douce de l'agenda : démarre un peu avant l'entrée à l'écran, les éléments s'enchaînent l'un après l'autre */
+  var gentleSeer = (!still && 'IntersectionObserver' in window)
+    ? new IntersectionObserver(function(entries){
+        entries.forEach(function(en){
+          if(!en.isIntersecting) return;
+          en.target.classList.add('in'); gentleSeer.unobserve(en.target);
+        });
+      }, {rootMargin:'0px 0px 6% 0px', threshold:0})
+    : null;
+  function watchGentle(nodes, step, base, kind){
+    Array.prototype.forEach.call(nodes, function(el,i){
+      if(el.dataset.seen) return;
+      kind=kind||'gentle';
+      if(!gentleSeer){ el.classList.add(kind,'in'); el.dataset.seen='1'; return; }
+      hush(el, function(){ el.classList.add(kind); el.classList.remove('in'); });
+      el.style.transitionDelay = ((base||0) + i*(step||0)) + 'ms';
+      el.dataset.seen='1';
+      gentleSeer.observe(el);
+    });
+  }
 
   function revealRefs(){
     Array.prototype.forEach.call(q('#refsGrid .ref'), function(el){ delete el.dataset.seen; });
@@ -1132,7 +1156,7 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
   function stage(){
     /* pôles : le visuel se dévoile, le texte monte juste après */
     Array.prototype.forEach.call(q('.pillar'), function(el,i){
-      watch(el.querySelectorAll('figure'), 'unveil', 0, i*90);
+      watchGentle(el.querySelectorAll('figure'), 0, 0, 'fade');
       watch(el.querySelectorAll('h2, p, .wa-cta'), 'rise', 80, 140 + i*90);
     });
     watch(q('.refs-title'), 'rise', 0);
@@ -1140,20 +1164,21 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     stageDisc();
     /* galerie, unreleased, agenda : dans CHAQUE bloc, le titre arrive d'abord, puis le sous-titre, puis les lignes (même ordre partout) */
     Array.prototype.forEach.call(q('.cell'), function(c){
+      if(c.id==='agenda') return;
       watch(Array.prototype.filter.call(c.children, function(n){ return n.matches('h3, .label'); }), 'rise', 80);
     });
     stageGallery();
     watch(q('#unrList .unr-item'), 'rise', 110, 160);
-    watch(q('#agendaList .date, #agendaList .note'), 'rise', 110, 160);
+    watchGentle(q('#agenda > h3, #agenda > .label'), 140, 0);
+    watchGentle(q('#agendaList .date, #agendaList .note'), 170, 360);
     watch(q('.faq-head h2, .faq-head .label, .faq-photo'), 'rise', 90);
     watch(q('.faq-item'), 'rise', 80);
     watch(q('.cta h2'), 'rise', 0);
     watch(q('.cta-btn'), 'rise', 0, 160);
   }
 
-  /* ---- parallaxe douce + fil de progression ---- */
+  /* ---- parallaxe douce ---- */
   (function(){
-    var bar=document.getElementById('progBar');
     var heroSec=document.querySelector('.hero'),
         heroMedia=document.querySelector('.hero-media'),
         heroInner=document.querySelector('.hero-inner'),
@@ -1164,7 +1189,6 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
       var y=window.scrollY||window.pageYOffset||0, vh=window.innerHeight||1,
           doc=document.documentElement,
           max=Math.max(1, doc.scrollHeight - vh);
-      if(bar) bar.style.transform='scaleX('+Math.min(1,Math.max(0,y/max)).toFixed(4)+')';
       if(!still && heroSec){
         var hh=heroSec.offsetHeight||1, pr=Math.min(1, y/hh);
         if(heroMedia) heroMedia.style.transform='translate3d(0,'+(y*.16).toFixed(1)+'px,0)';
@@ -1404,7 +1428,60 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     if('ResizeObserver' in window) new ResizeObserver(upd).observe(sc);
     upd(); return upd;
   }
+  /* bandes défilantes (discographie, galerie) : défilement libre et doux, sans aimant ni recalage ; à la souris, le glisser garde son élan.
+     Galerie : défilement automatique d'un visuel toutes les 3 secondes, qui s'efface dès qu'on touche, survole ou défile. */
+  function stripFx(sc, itemsOf){
+    var anim=null, down=false, lastScroll=0, samples=[];
+    var calm=window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+    function maxL(){ return Math.max(0, sc.scrollWidth - sc.clientWidth); }
+    function clamp(x){ return Math.min(maxL(), Math.max(0, x)); }
+    function cancel(){ if(anim){ cancelAnimationFrame(anim); anim=null; } }
+    function go(to, ms){
+      cancel(); var from=sc.scrollLeft; to=clamp(to);
+      if(Math.abs(to-from)<1.5) return;
+      if(calm){ sc.scrollLeft=to; return; }
+      var t0=performance.now(); ms=ms||Math.min(900, 380+Math.abs(to-from)*.5);
+      (function f(now){
+        var k=Math.min(1,(now-t0)/ms), e=1-Math.pow(1-k,4);   /* arrivée très douce */
+        sc.scrollLeft=from+(to-from)*e;
+        anim = k<1 ? requestAnimationFrame(f) : null;
+      })(t0);
+    }
+    sc.addEventListener('scroll', function(){ lastScroll=Date.now(); }, {passive:true});
+    sc.addEventListener('touchstart', function(){ down=true; cancel(); }, {passive:true});
+    sc.addEventListener('touchend', function(){ down=false; }, {passive:true});
+    sc.addEventListener('touchcancel', function(){ down=false; }, {passive:true});
+    sc.addEventListener('wheel', cancel, {passive:true});
+    sc.addEventListener('pointerdown', function(e){ if(e.pointerType==='mouse'){ down=true; cancel(); samples=[]; } });
+    window.addEventListener('pointermove', function(e){
+      if(!down || e.pointerType!=='mouse') return;
+      var t=performance.now(); samples.push({x:e.clientX,t:t});
+      while(samples.length>2 && t-samples[0].t>110) samples.shift();
+    });
+    window.addEventListener('pointerup', function(e){ if(e.pointerType==='mouse') down=false; });
+    function stepPx(){
+      var it=itemsOf()[0]; if(!it) return 0;
+      var cs=getComputedStyle(it.parentNode);
+      return it.getBoundingClientRect().width + (parseFloat(cs.columnGap||cs.gap)||0);
+    }
+    return {
+      /* relâché à la souris : l'élan du geste se prolonge doucement */
+      release: function(){
+        down=false; var v=0, s=samples, now=performance.now();
+        if(s.length>1 && now-s[s.length-1].t<90){ var dt=s[s.length-1].t-s[0].t; if(dt>0) v=-(s[s.length-1].x-s[0].x)/dt; }
+        samples=[];
+        if(Math.abs(v)>.15) go(sc.scrollLeft + v*300, 700+Math.min(500,Math.abs(v)*200));
+      },
+      /* défilement automatique : visuel suivant (retour au début à la fin) */
+      next: function(){
+        if(down || anim || Date.now()-lastScroll<500) return;
+        if(sc.scrollLeft>=maxL()-4){ go(0, 1100); return; }
+        var st=stepPx(); if(st) go(sc.scrollLeft + st, 900);
+      }
+    };
+  }
   bindProg(document.getElementById('discGrid'), document.getElementById('discProg'));
+  var fxDisc=stripFx(document.getElementById('discGrid'), function(){ return document.querySelectorAll('#discGrid .rel'); });
   (function(sc){
     if(!sc) return; var md=null, moved=false;
     sc.addEventListener('dragstart', function(e){ e.preventDefault(); });
@@ -1423,9 +1500,7 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
       setTimeout(function(){ moved=false; }, 0);
       if(moved){
         sc.classList.remove('dragging');
-        var it=sc.querySelector('.rel'); if(!it) return;
-        var st=it.getBoundingClientRect().width+parseFloat(getComputedStyle(sc).columnGap||12);
-        sc.scrollTo({left:Math.round(sc.scrollLeft/st)*st, behavior:'smooth'});
+        fxDisc.release();
       }
     });
     /* un glisser n'ouvre pas le lecteur */
@@ -1451,11 +1526,9 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
         + parseFloat(getComputedStyle(track).columnGap||getComputedStyle(track).gap||0);
     }
     var prog=bindProg(vp, pbar);
+    var fxGal=stripFx(vp, function(){ return track.children; });
     function atEnd(){ return vp.scrollLeft + vp.clientWidth >= vp.scrollWidth - 4; }
-    function shift(){
-      if(atEnd()) vp.scrollTo({left:0, behavior:'smooth'});
-      else vp.scrollTo({left:(Math.round(vp.scrollLeft/step())+1)*step(), behavior:'smooth'});
-    }
+    function shift(){ fxGal.next(); }
     function reset(){ vp.scrollLeft=0; prog(); }
     function stop(){ if(timer){ clearInterval(timer); timer=null; } }
     function start(){ if(still || !inView) return; stop(); timer=setInterval(shift, 3000); }
@@ -1470,6 +1543,7 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
       }, {threshold:.25}).observe(vp);
     } else { inView=true; }
     vp.addEventListener('touchstart', hold, {passive:true});
+    vp.addEventListener('pointerdown', hold, {passive:true});
     vp.addEventListener('wheel', hold, {passive:true});
     vp.addEventListener('mouseenter', stop);
     vp.addEventListener('mouseleave', function(){ if(!md) start(); });
@@ -1489,7 +1563,7 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     window.addEventListener('pointerup', function(){
       if(!md) return; var moved=md.moved; md=null; vp.classList.remove('dragging');
       setTimeout(function(){ dragged=false; }, 0);
-      if(moved){ var n=Math.round(vp.scrollLeft/step()); vp.scrollTo({left:n*step(), behavior:'smooth'}); }
+      if(moved) fxGal.release();
     });
 
     /* agrandissement */
