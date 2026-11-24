@@ -135,6 +135,7 @@ button.arrow-link{appearance:none;background:none;border:0;cursor:pointer;font-f
   transform-origin:52.1% 47.5%;
   transform:scale(1);animation:heroZoom 60s linear forwards;will-change:transform;backface-visibility:hidden}   /* léger zoom avant, très lent et continu */
 @keyframes heroZoom{from{transform:scale(1)}to{transform:scale(1.07)}}
+.tab-away .hero-media img{animation-play-state:paused}   /* onglet en arrière-plan : le zoom s'arrête, il ne « saute » pas au retour */
 @media (prefers-reduced-motion:reduce){ .hero-media img{animation:none} }
 @media (max-width:860px){ .hero-media img{transform-origin:50.2% 41.9%} }
 .hero-media::after{content:"";position:absolute;inset:0;
@@ -287,16 +288,12 @@ button.arrow-link{appearance:none;background:none;border:0;cursor:pointer;font-f
 .unveil{opacity:0;transform:translateY(34px) scale(1.035);
   transition:opacity 1.25s cubic-bezier(.22,.7,.25,1),transform 1.25s cubic-bezier(.22,.7,.25,1)}
 .unveil.in{opacity:1;transform:none}
-/* agenda (« Prochaines dates ») : fondu long et montée très courte, courbe d'arrivée très douce */
-.gentle{opacity:0;transform:translateY(10px);
-  transition:opacity 1.7s cubic-bezier(.25,.46,.45,.94),transform 2s cubic-bezier(.16,1,.3,1)}
-.gentle.in{opacity:1;transform:none}
 /* photos des pôles (Music, Hour) : simple fondu très lent, avec un infime recul de l'image */
 .fade{opacity:0;transform:scale(1.015);
-  transition:opacity 1.9s cubic-bezier(.25,.46,.45,.94),transform 2.4s cubic-bezier(.16,1,.3,1)}
+  transition:opacity 1.25s cubic-bezier(.25,.46,.45,.94),transform 1.6s cubic-bezier(.16,1,.3,1)}
 .fade.in{opacity:1;transform:none}
 /* (la règle « .pillar figure » imposait sa propre transition et annulait le fondu : on la rend plus spécifique) */
-.pillar figure.fade{transition:opacity 1.9s cubic-bezier(.25,.46,.45,.94),transform 2.4s cubic-bezier(.16,1,.3,1),outline-color .6s ease}
+.pillar figure.fade{transition:opacity 1.25s cubic-bezier(.25,.46,.45,.94),transform 1.6s cubic-bezier(.16,1,.3,1),outline-color .6s ease}
 @media (prefers-reduced-motion:reduce){
   .reveal,.rise,.unveil{opacity:1;transform:none;filter:none}
 }
@@ -1164,19 +1161,19 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     stageDisc();
     /* galerie, unreleased, agenda : dans CHAQUE bloc, le titre arrive d'abord, puis le sous-titre, puis les lignes (même ordre partout) */
     Array.prototype.forEach.call(q('.cell'), function(c){
-      if(c.id==='agenda') return;
       watch(Array.prototype.filter.call(c.children, function(n){ return n.matches('h3, .label'); }), 'rise', 80);
     });
     stageGallery();
     watch(q('#unrList .unr-item'), 'rise', 110, 160);
-    watchGentle(q('#agenda > h3, #agenda > .label'), 140, 0);
-    watchGentle(q('#agendaList .date, #agendaList .note'), 170, 360);
+    watch(q('#agendaList .date, #agendaList .note'), 'rise', 110, 160);
     watch(q('.faq-head h2, .faq-head .label, .faq-photo'), 'rise', 90);
     watch(q('.faq-item'), 'rise', 80);
     watch(q('.cta h2'), 'rise', 0);
     watch(q('.cta-btn'), 'rise', 0, 160);
   }
 
+  /* le zoom très lent de la photo d'en-tête se met en pause quand on quitte l'onglet, et reprend là où il en était */
+  document.addEventListener('visibilitychange', function(){ document.documentElement.classList.toggle('tab-away', document.hidden); });
   /* ---- parallaxe douce ---- */
   (function(){
     var heroSec=document.querySelector('.hero'),
