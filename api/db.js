@@ -15,7 +15,7 @@ module.exports = async function (req, res) {
   const ops = Array.isArray(body.ops) ? body.ops : [];
   if (!ops.length || ops.length > 500) return res.status(400).json({ error: 'bad_ops' });
   try {
-    const r = await db.load();
+    const r = await db.load(true);
     const state = r.db;
     for (const o of ops) {
       if (db.COLS.indexOf(o.col) < 0 || !ID_RE.test(String(o.id))) return res.status(400).json({ error: 'bad_target' });

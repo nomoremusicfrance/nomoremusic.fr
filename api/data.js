@@ -7,7 +7,7 @@ module.exports = async function (req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ error: 'method' });
   try {
-    const r = await db.load();
+    const r = await db.load(auth.isAdmin(req));
     const out = {};
     db.COLS.forEach(function (c) {
       out[c] = Object.keys(r.db[c] || {}).map(function (id) { return { id: id, data: r.db[c][id] }; });

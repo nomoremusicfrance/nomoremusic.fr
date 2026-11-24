@@ -8,7 +8,7 @@ module.exports = async function (req, res) {
   try {
     const r = await Promise.race([
       db.load(),
-      new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 1500); })
+      new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 2500); })
     ]);
     if (r.seeded) { res.setHeader('X-Nomore-Source', 'defaults'); return res.status(200).send(db.staticSource()); }
     res.setHeader('X-Nomore-Source', 'blob');
