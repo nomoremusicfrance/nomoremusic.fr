@@ -1891,6 +1891,18 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     au.addEventListener('durationchange', paint);
     au.addEventListener('seeked', paint);
     au.addEventListener('loadedmetadata', paint);
+    /* un appui (ou un clic) n'importe où en dehors du bouton lecture et de la waveform met l'extrait en pause ; un défilement ne compte pas */
+    (function(){
+      var px=0, py=0, pt=0;
+      document.addEventListener('pointerdown', function(e){ px=e.clientX; py=e.clientY; pt=Date.now(); }, true);
+      document.addEventListener('pointerup', function(e){
+        if(au.paused) return;
+        if(Math.abs(e.clientX-px)>10 || Math.abs(e.clientY-py)>10 || Date.now()-pt>700) return;
+        var t=e.target; if(t && t.nodeType!==1) t=t.parentNode;
+        if(t && t.closest && t.closest('#unrList .play, #unrList .wave')) return;
+        au.pause();
+      }, true);
+    })();
     renderUnr();
   })();
 

@@ -185,7 +185,7 @@ body{min-height:100vh;min-height:100svh}
   transition:color .3s ease,opacity .3s ease}
 .cal-nav:hover{color:var(--amber-soft)}
 .cal-nav:disabled{opacity:.25;cursor:default;color:var(--mute)}
-.cal-body{position:relative;min-height:262px}
+.cal-body{position:relative;min-height:262px;touch-action:pan-y;-webkit-user-select:none;user-select:none}
 .cal-days,.cal-months{transition:opacity .3s ease,transform .45s cubic-bezier(.22,.9,.3,1),visibility 0s linear 0s}
 .cal-months{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:56px;gap:6px;align-content:start;
   opacity:0;visibility:hidden;pointer-events:none;transform:scale(.97);transition-property:opacity,transform,visibility;transition-delay:0s,0s,.45s}
@@ -657,6 +657,30 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
       if(mode==='months'){ if(yr<last.getFullYear()){ yr++; renderMonths(); head(); } return; }
       if(mode==='days' && view<last){ view=new Date(view.getFullYear(), view.getMonth()+1, 1); render(1); }
     });
+    /* glisser le doigt (ou la souris, ou deux doigts sur le trackpad) vers la gauche = mois suivant, vers la droite = mois précédent */
+    (function(){
+      var body=cal.querySelector('.cal-body'); if(!body) return;
+      var sx=0, sy=0, pid=null, swiped=false;
+      body.addEventListener('pointerdown', function(e){
+        if(e.pointerType==='mouse' && e.button!==0) return;
+        sx=e.clientX; sy=e.clientY; pid=e.pointerId; swiped=false;
+      });
+      body.addEventListener('pointerup', function(e){
+        if(pid!==e.pointerId) return; pid=null;
+        var dx=e.clientX-sx, dy=e.clientY-sy;
+        if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)*1.4){ swiped=true; (dx<0 ? next : prev).click(); }
+      });
+      body.addEventListener('pointercancel', function(){ pid=null; });
+      body.addEventListener('click', function(e){ if(swiped){ e.stopPropagation(); e.preventDefault(); swiped=false; } }, true);
+      var acc=0, lock=0;
+      body.addEventListener('wheel', function(e){
+        if(Math.abs(e.deltaX)<=Math.abs(e.deltaY)) return;
+        e.preventDefault();
+        var t=Date.now(); if(t<lock) return;
+        acc+=e.deltaX;
+        if(Math.abs(acc)>50){ (acc>0 ? next : prev).click(); acc=0; lock=t+450; }
+      }, {passive:false});
+    })();
     months.addEventListener('click', function(e){
       var b=e.target.closest('.cal-m'); if(!b || b.disabled) return;
       if(b.hasAttribute('data-y')){ yr=+b.getAttribute('data-y'); setMode('months'); return; }
@@ -763,6 +787,20 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     var t=ev.target; if(!t || (t.id!=='f-name' && t.id!=='f-mail')) return;
     var w=t.closest('.field'); if(w && w.classList.contains('err')){ w.classList.remove('err'); w.querySelector('.hint').textContent=''; }
   });
+
+  /* toujours au moins une prestation cochée : on ne peut pas décocher la dernière (« Autre » permet de décrire un autre projet) */
+  (function(){
+    var set=document.getElementById('typeSet'); if(!set) return;
+    function boxes(){ return Array.prototype.slice.call(set.querySelectorAll('input[name="type"]')); }
+    set.addEventListener('click', function(e){
+      var t=e.target; if(!t || t.name!=='type') return;
+      var on=boxes().filter(function(b){ return b.checked; });
+      if(on.length===0){ t.checked=true; e.preventDefault(); }
+    });
+    set.addEventListener('change', function(){
+      var b=boxes(); if(b.length && !b.some(function(x){ return x.checked; })) b[0].checked=true;
+    });
+  })();
 
   var again=document.getElementById('doneAgain');
   if(again) again.addEventListener('click', function(){
