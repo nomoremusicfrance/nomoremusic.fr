@@ -133,10 +133,7 @@ button.arrow-link{appearance:none;background:none;border:0;cursor:pointer;font-f
 /* le soleil est calé au centre de l'écran (voir script « soleil au centre ») */
 .hero-media img{position:absolute;left:0;top:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:50% 50%;
   transform-origin:52.1% 47.5%;
-  transform:scale(1);animation:heroZoom 60s linear forwards;will-change:transform;backface-visibility:hidden}   /* léger zoom avant, très lent et continu */
-@keyframes heroZoom{from{transform:scale(1)}to{transform:scale(1.07)}}
-.tab-away .hero-media img{animation-play-state:paused}   /* onglet en arrière-plan : le zoom s'arrête, il ne « saute » pas au retour */
-@media (prefers-reduced-motion:reduce){ .hero-media img{animation:none} }
+  transform:none;backface-visibility:hidden}   /* photo d'en-tête fixe, sans zoom */
 @media (max-width:860px){ .hero-media img{transform-origin:50.2% 41.9%} }
 .hero-media::after{content:"";position:absolute;inset:0;
   background:
@@ -1172,8 +1169,6 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     watch(q('.cta-btn'), 'rise', 0, 160);
   }
 
-  /* le zoom très lent de la photo d'en-tête se met en pause quand on quitte l'onglet, et reprend là où il en était */
-  document.addEventListener('visibilitychange', function(){ document.documentElement.classList.toggle('tab-away', document.hidden); });
   /* ---- parallaxe douce ---- */
   (function(){
     var heroSec=document.querySelector('.hero'),

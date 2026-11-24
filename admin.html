@@ -230,12 +230,12 @@ input::placeholder{color:rgba(141,148,143,.5)}
 
   <section class="panel" id="p-unreleased" hidden>
     <div class="panel-head">
-      <div><h2>Unreleased</h2><p>Importez l'extrait déjà découpé : la durée et la forme d'onde sont calculées automatiquement.</p></div>
+      <div><h2>Unreleased</h2><p>Importez le morceau complet : vous choisissez ensuite les 30 secondes à publier. Seul l'extrait est envoyé sur le site.</p></div>
       <label class="btn primary" for="addUnr">+ Ajouter un extrait</label>
       <input id="addUnr" type="file" accept="audio/*" hidden>
     </div>
     <div class="rows" id="l-unreleased"></div>
-    <p class="hint">Format conseillé : <b>MP3 de 30 à 40 secondes, 160 kbit/s</b>. Taille maximale d’un fichier audio : 40 Mo.</p>
+    <p class="hint">Le morceau est lu <b>dans votre navigateur</b> : seules les <b>30 secondes choisies</b> sont envoyées, le morceau complet n'est jamais publié. Formats acceptés : MP3, WAV, M4A, FLAC.</p>
   </section>
 
   <section class="panel" id="p-discography" hidden>
@@ -269,6 +269,7 @@ input::placeholder{color:rgba(141,148,143,.5)}
 <script src="/api/data-js"></script>
 <script>window.NOMORE_DEFAULTS||document.write('<script src="data.js"><\/script>')</script>
 <script src="nomore-db.js"></script>
+<script src="excerpt.js"></script>
 <script>
 (function(){
   /* ---------- verrouillage ---------- */
@@ -501,6 +502,20 @@ input::placeholder{color:rgba(141,148,143,.5)}
       if(k){ row[k]=e.target.value; save(col,row).then(function(){ flash('Enregistré'); }); return; }
       var kind=e.target.getAttribute('data-file'), file=e.target.files && e.target.files[0];
       if(!kind || !file || !needAssets()) return;
+      var input=e.target;
+      if(kind==='unraudio'){
+        /* Unreleased : on choisit les 30 secondes, seul l'extrait est envoyé */
+        input.disabled=true;
+        NomoreExcerpt.pick(file).then(function(r){
+          flash('Envoi de l\'extrait…');
+          return uploadAudio(r.file).then(function(id){
+            row.src=id; delete row.enc; delete row.mime; row.d=r.d||30; if(r.w && r.w.length) row.w=r.w;
+          });
+        }).then(function(){ return save(col,row); })
+          .then(function(){ render(col); flash('Extrait enregistré'); })
+          .catch(function(err){ input.disabled=false; input.value=''; if(err && err.cancelled) return; flash('Extrait non envoyé : '+why(err),'err'); });
+        return;
+      }
       e.target.disabled=true; flash('Envoi en cours…');
       var job;
       if(kind==='cov'){
@@ -567,11 +582,12 @@ input::placeholder{color:rgba(141,148,143,.5)}
   document.getElementById('addUnr').addEventListener('change', function(e){
     var f=e.target.files && e.target.files[0]; e.target.value='';
     if(!f || !needAssets()) return;
-    flash('Envoi en cours…');
-    Promise.all([uploadAudio(f), analyse(f)]).then(function(res){
-      return create('unreleased',{t:f.name.replace(/\.[^.]+$/,''), a:'Nomore', src:res[0],
-        d:res[1].d||30, w:res[1].w});
-    }).catch(function(){});
+    NomoreExcerpt.pick(f).then(function(r){
+      flash('Envoi de l\'extrait…');
+      return uploadAudio(r.file).then(function(id){
+        return create('unreleased',{t:f.name.replace(/\.[^.]+$/,''), a:'Nomore', src:id, d:r.d||30, w:r.w});
+      });
+    }).catch(function(err){ if(err && err.cancelled) return; flash('Extrait non envoyé : '+why(err),'err'); });
   });
 
   /* ---------- import du contenu actuel ---------- */
