@@ -1405,7 +1405,7 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
   })();
 
   /* ---- barre de progression d'une bande défilante ---- */
-  function bindProg(sc, bar){
+  function bindProg(sc, bar, fixed){
     if(!sc || !bar) return function(){};
     var wrap=bar.parentNode, tick=false;
     function upd(){
@@ -1414,6 +1414,7 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
       if(max <= w + 2){ wrap.classList.add('off'); return; }
       wrap.classList.remove('off');
       var frac=w/max, pos=sc.scrollLeft/(max-w);
+      if(fixed && window.matchMedia('(min-width:901px)').matches) frac=fixed;   /* web : le curseur fait toujours la moitié de la barre */
       bar.style.width=(frac*100)+'%';
       bar.style.transform='translateX('+(pos*(1-frac)/frac*100)+'%)';
     }
@@ -1435,10 +1436,11 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
       cancel(); var from=sc.scrollLeft; to=clamp(to);
       if(Math.abs(to-from)<1.5) return;
       if(calm){ sc.scrollLeft=to; return; }
-      var t0=performance.now(); ms=ms||Math.min(900, 380+Math.abs(to-from)*.5);
+      var t0=performance.now(), dpr=window.devicePixelRatio||1; ms=ms||Math.min(900, 380+Math.abs(to-from)*.5);
+      to=Math.round(to*dpr)/dpr;                               /* arrivée pile sur un pixel de l'écran : pas de micro-décalage après l'arrêt */
       (function f(now){
-        var k=Math.min(1,(now-t0)/ms), e=1-Math.pow(1-k,4);   /* arrivée très douce */
-        sc.scrollLeft=from+(to-from)*e;
+        var k=Math.min(1,(now-t0)/ms), e=k<.5 ? 4*k*k*k : 1-Math.pow(-2*k+2,3)/2;   /* départ et arrivée doux, sans longue traîne */
+        sc.scrollLeft = k<1 ? Math.round((from+(to-from)*e)*dpr)/dpr : to;
         anim = k<1 ? requestAnimationFrame(f) : null;
       })(t0);
     }
@@ -1486,7 +1488,7 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
       }
     };
   }
-  bindProg(document.getElementById('discGrid'), document.getElementById('discProg'));
+  bindProg(document.getElementById('discGrid'), document.getElementById('discProg'), .5);
   var fxDisc=stripFx(document.getElementById('discGrid'), function(){ return document.querySelectorAll('#discGrid .rel'); });
   (function(sc){
     if(!sc) return; var md=null, moved=false;
@@ -1534,14 +1536,20 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
     var prog=bindProg(vp, pbar);
     var fxGal=stripFx(vp, function(){ return track.children; }, { align:function(){ return window.matchMedia('(max-width:900px)').matches; } });
     function atEnd(){ return vp.scrollLeft + vp.clientWidth >= vp.scrollWidth - 4; }
-    function shift(){ fxGal.next(); }
+    function warm(){                                           /* charge d'avance les prochaines photos : aucune n'apparaît après l'arrêt */
+      var its=track.children, st=step(), i0=st ? Math.floor(vp.scrollLeft/st) : 0;
+      for(var j=i0; j<Math.min(its.length, i0+8); j++){
+        var im=its[j].querySelector('img'); if(im && im.loading==='lazy') im.loading='eager';
+      }
+    }
+    function shift(){ warm(); fxGal.next(); }
     function reset(){ vp.scrollLeft=0; prog(); }
     var first=null;
     function stop(){ if(timer){ clearInterval(timer); timer=null; } if(first){ clearTimeout(first); first=null; } }
     /* à l'arrivée sur la galerie, la première photo suivante arrive vite (1,2 s) ; ensuite toutes les 3 s */
     function start(quick){
       if(still || !inView) return; stop();
-      if(quick===true){ first=setTimeout(function(){ first=null; shift(); timer=setInterval(shift, 3000); }, 1200); }
+      if(quick===true){ warm(); first=setTimeout(function(){ first=null; shift(); timer=setInterval(shift, 3000); }, 1200); }
       else timer=setInterval(shift, 3000);
     }
     /* la main reprend : pause, puis le défilement automatique repart après un temps calme */
