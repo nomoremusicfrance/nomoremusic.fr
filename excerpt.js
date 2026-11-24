@@ -1,12 +1,14 @@
 /* Choix de l'extrait « Unreleased » (30 secondes) — utilisé par le dashboard.
    Le morceau est lu et analysé DANS LE NAVIGATEUR : seules les 30 secondes choisies sont envoyées au site.
    Le morceau complet n'est jamais publié.
-   - MP3 : on découpe directement les trames du fichier (aucune perte de qualité, fichier léger) ;
-   - autre format (WAV, M4A, FLAC…) : l'extrait est converti en WAV, avec un léger fondu au début et à la fin. */
+   - MP3 : on découpe directement les trames du fichier (aucune perte de qualité, fichier léger) et on y applique
+     un fondu entrant et sortant en baissant le gain de chaque trame (sans ré-encoder) ;
+   - autre format (WAV, M4A, FLAC…) : l'extrait est converti en WAV, avec le même fondu. */
 (function(){
   var LEN = 30;                       /* durée de l'extrait en secondes */
   var MAX_SRC = 200 * 1024 * 1024;    /* taille maximale du fichier d'origine */
   var PRE = 2;                        /* trames d'amorce avant le début (le décodeur MP3 en a besoin) */
+  var FADE_IN = 0.5, FADE_OUT = 1.3;  /* fondus, comme sur les extraits déjà en ligne (secondes) */
 
   /* ---------------- MP3 : lecture des trames et découpe ---------------- */
   var BR1 = [0,32,40,48,56,64,80,96,112,128,160,192,224,256,320,0];
@@ -48,13 +50,45 @@
     }
     return out.length>20 ? {frames:out, rate:rate, spf:spf} : null;
   }
+  function crc16(b, a, z){            /* CRC des trames protégées (en-tête + informations annexes) */
+    var c=0xFFFF;
+    for(var i=a;i<z;i++){ c^=b[i]<<8; for(var k=0;k<8;k++) c=(c&0x8000)?((c<<1)^0x8005)&0xFFFF:(c<<1)&0xFFFF; }
+    return c;
+  }
+  function getBits(b, bit, n){ var v=0; for(var i=0;i<n;i++){ var p=bit+i; v=(v<<1)|((b[p>>3]>>(7-(p&7)))&1); } return v; }
+  function setBits(b, bit, n, v){ for(var i=0;i<n;i++){ var p=bit+i, m=1<<(7-(p&7)), x=(v>>(n-1-i))&1; if(x) b[p>>3]|=m; else b[p>>3]&=~m; } }
+  /* baisse le gain (« global_gain ») de chaque tranche de 576 échantillons : g = coefficient 0..1 donné par gainAt(temps) */
+  function fadeFrame(b, o, rate, t0, gainAt){
+    var ver=(b[o+1]>>3)&3, prot=!(b[o+1]&1), mono=((b[o+3]>>6)&3)===3, nch=mono?1:2;
+    var m1=(ver===3), ngr=m1?2:1, side=o+4+(prot?2:0), base=side*8;
+    var head=m1 ? 9+(mono?5:3)+4*nch : 8+(mono?1:2), gsz=m1?59:63;
+    for(var gr=0;gr<ngr;gr++){
+      var g=gainAt(t0+gr*576/rate);
+      if(g>=0.9995) continue;
+      var delta = g<=0.0005 ? 255 : Math.round(-4*Math.log(g)/Math.LN2);
+      for(var ch=0;ch<nch;ch++){
+        var pos=base+head+(gr*nch+ch)*gsz+21;                /* global_gain : 8 bits */
+        var gg=getBits(b,pos,8); setBits(b,pos,8,Math.max(0,gg-delta));
+      }
+    }
+    if(prot){                                              /* trame protégée : on recalcule le CRC (en-tête + informations annexes) */
+      var sl=m1?(mono?17:32):(mono?9:17), seq=[b[o+2],b[o+3]];
+      for(var i=0;i<sl;i++) seq.push(b[side+i]);
+      var c=crc16(seq,0,seq.length); b[o+4]=(c>>8)&255; b[o+5]=c&255;
+    }
+  }
   function cutMp3(bytes, start){
     var m=mp3Frames(bytes); if(!m) return null;
     var per=m.spf/m.rate, total=m.frames.length*per;
     var f0=Math.max(0, Math.floor(start/per)-PRE);
     var f1=Math.min(m.frames.length, f0+Math.ceil(LEN/per)+PRE);
     var a=m.frames[f0].o, last=m.frames[f1-1], z=last.o+last.len;
-    return { bytes: bytes.subarray(a, z), seconds: (f1-f0-PRE)*per, total: total };
+    var out=new Uint8Array(bytes.subarray(a, z)), span=(f1-f0)*per;
+    function gainAt(t){ var g=1; if(t<FADE_IN) g=t/FADE_IN; var r=span-t; if(r<FADE_OUT) g=Math.min(g, r/FADE_OUT); return Math.max(0,g); }
+    try{
+      for(var k=f0;k<f1;k++) fadeFrame(out, m.frames[k].o-a, m.rate, (k-f0)*per, gainAt);
+    }catch(e){ out=new Uint8Array(bytes.subarray(a, z)); }
+    return { bytes: out, seconds: (f1-f0-PRE)*per, total: total };
   }
 
   /* ---------------- audio : décodage, crêtes, WAV ---------------- */
@@ -96,10 +130,10 @@
     s(0,'RIFF'); out.setUint32(4,bytes-8,true); s(8,'WAVE'); s(12,'fmt '); out.setUint32(16,16,true);
     out.setUint16(20,1,true); out.setUint16(22,ch,true); out.setUint32(24,rate,true); out.setUint32(28,rate*ch*2,true);
     out.setUint16(32,ch*2,true); out.setUint16(34,16,true); s(36,'data'); out.setUint32(40,n*ch*2,true);
-    var fi=Math.floor(.25*rate), fo=Math.floor(.7*rate), data=[];
+    var fi=Math.floor(FADE_IN*rate), fo=Math.floor(FADE_OUT*rate), data=[];
     for(var c=0;c<ch;c++) data.push(ab.getChannelData(c));
     for(var i=0;i<n;i++){
-      var g=1; if(i<fi) g=i/fi; else if(i>n-fo) g=(n-i)/fo;              /* léger fondu : pas de claquement */
+      var g=1; if(i<fi) g=i/fi; else if(i>n-fo) g=(n-i)/fo;              /* fondu entrant et sortant, comme les autres extraits */
       for(c=0;c<ch;c++){
         var v=Math.max(-1,Math.min(1,data[c][a+i]*g));
         out.setInt16(44+(i*ch+c)*2, v<0 ? v*0x8000 : v*0x7FFF, true);
@@ -216,7 +250,7 @@
           +   '<button type="button" class="btn ghost" data-x="p5" aria-label="Avancer de 5 secondes">+ 5 s</button>'
           +   '<button type="button" class="btn" data-x="play">&#9654; Écouter</button>'
           + '</div>'
-          + '<p class="xm-hint"><b>Glissez le cadre</b> (ou touchez la forme d\'onde) pour choisir le passage. Seules ces <b>30 secondes</b> sont envoyées : le morceau complet n\'est jamais publié.</p>'
+          + '<p class="xm-hint"><b>Glissez le cadre</b> (ou touchez la forme d\'onde) pour choisir le passage. Seules ces <b>30 secondes</b> sont envoyées, avec un fondu en entrée et en sortie : le morceau complet n\'est jamais publié.</p>'
           + '<div class="xm-act"><button type="button" class="btn ghost" data-x="no">Annuler</button><button type="button" class="btn primary" data-x="ok">Valider l\'extrait</button></div>';
         var wrap=box.querySelector('.xm-wave'), cv=wrap.querySelector('canvas'), g=cv.getContext('2d'),
             timeEl=box.querySelector('.xm-time'), bPlay=box.querySelector('[data-x=play]'), bOk=box.querySelector('[data-x=ok]');
@@ -277,8 +311,8 @@
             var ac=ctxNew(), s=ac.createBufferSource(), gain=ac.createGain();
             s.buffer=ctx.ab; s.connect(gain); gain.connect(ac.destination);
             var t0=ac.currentTime+0.03, from=start;
-            gain.gain.setValueAtTime(0,t0); gain.gain.linearRampToValueAtTime(1,t0+0.15);
-            gain.gain.setValueAtTime(1,t0+LEN-0.5); gain.gain.linearRampToValueAtTime(0,t0+LEN);
+            gain.gain.setValueAtTime(0,t0); gain.gain.linearRampToValueAtTime(1,t0+FADE_IN);
+            gain.gain.setValueAtTime(1,t0+LEN-FADE_OUT); gain.gain.linearRampToValueAtTime(0,t0+LEN);
             s.start(t0, from, LEN);
             player={ac:ac, src:s, raf:0};
             bPlay.innerHTML='&#10074;&#10074; Pause';
