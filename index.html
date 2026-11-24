@@ -241,14 +241,6 @@ button.arrow-link{appearance:none;background:none;border:0;cursor:pointer;font-f
 #music figure img{object-position:50% 50%}
 #hour figure img{object-position:50% 55%}
 
-/* ---------- fil de progression ---------- */
-.prog{position:fixed;left:0;right:0;top:0;height:2px;z-index:96;pointer-events:none;
-  background:rgba(237,230,218,.05)}
-.prog i{display:block;height:100%;width:100%;transform:scaleX(0);transform-origin:left center;
-  background:linear-gradient(90deg,rgba(201,153,92,.5),var(--amber-soft))}
-
-
-
 /* ---------- grain : la texture des pochettes, posée sur tout le site ---------- */
 .grain{position:fixed;inset:-110px;z-index:95;pointer-events:none;opacity:.09;
   background-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMDAnIGhlaWdodD0nMjAwJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIHR5cGU9J2ZyYWN0YWxOb2lzZScgYmFzZUZyZXF1ZW5jeT0nMC45JyBudW1PY3RhdmVzPScyJyBzdGl0Y2hUaWxlcz0nc3RpdGNoJy8+PGZlQ29sb3JNYXRyaXggdHlwZT0nc2F0dXJhdGUnIHZhbHVlcz0nMCcvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPScyMDAnIGhlaWdodD0nMjAwJyBmaWx0ZXI9J3VybCgjbiknIG9wYWNpdHk9JzAuNScvPjwvc3ZnPg==");
@@ -308,14 +300,13 @@ button.arrow-link{appearance:none;background:none;border:0;cursor:pointer;font-f
 .disc{overflow:hidden}
 /* bande défilante partout : 6 pochettes à l'écran sur ordinateur, 4 sur tablette, 2 sur mobile */
 .disc-grid{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;padding:0 0 10px;
-  scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;cursor:grab}
+  scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none;cursor:grab}
 .disc-grid::-webkit-scrollbar{display:none}
 .disc-grid.dragging{scroll-snap-type:none;cursor:grabbing}
 .disc-grid .rel{flex:0 0 calc((100% - 5 * 12px) / 6);scroll-snap-align:start}
 @media (max-width:1100px){
   .disc-grid{gap:10px}
-  .disc-grid .rel{flex-basis:calc((100% - 3 * 10px) / 4);scroll-snap-align:none}
-  .disc-grid .rel:nth-child(2n+1){scroll-snap-align:start;scroll-snap-stop:always}
+  .disc-grid .rel{flex-basis:calc((100% - 3 * 10px) / 4)}
 }
 @media (max-width:640px){
   .disc-grid .rel{flex-basis:calc((100% - 10px) / 2)}
@@ -422,10 +413,14 @@ button.rel{appearance:none;background:none;border:0;padding:0;text-align:center;
 .cell .arrow-link{margin-top:auto;padding-top:26px}
 
 .gal{--gn:4;--ggap:clamp(8px,1vw,14px);overflow-x:auto;overflow-y:hidden;
-  scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
+  scroll-snap-type:x proximity;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
   scrollbar-width:none;cursor:grab}
 .gal::-webkit-scrollbar{display:none}
 .gal.dragging{scroll-snap-type:none;cursor:grabbing}
+/* tactile (téléphone, tablette) : défilement libre, sans aimant — la bande glisse avec l'élan du doigt, comme n'importe quelle liste */
+@media (hover:none) and (pointer:coarse), (max-width:640px){
+  .disc-grid,.gal{scroll-snap-type:none}
+}
 .gal-track{display:flex;gap:var(--ggap);width:100%}
 /* barre de progression sous les miniatures */
 /* barre de progression commune (galerie, discographie) : filet discret, curseur ambre qui suit le défilement */
@@ -966,7 +961,6 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
   <div class="pt-circle" id="portraitCircle"><img src="assets/portrait.jpg?v=5" alt="Nomore, DJ et producteur d’événements, casque sur l’oreille sous un projecteur ambré" data-i18n-attr="alt:portraitAlt" width="600" height="600" decoding="async"></div>
 </div>
 
-<div class="prog" aria-hidden="true"><i id="progBar"></i></div>
 <div class="grain" aria-hidden="true"></div>
 
 <footer class="ftr">
@@ -1138,19 +1132,21 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
     watch(q('.refs-title'), 'rise', 0);
     watch(q('.disc-head h2, .disc-head .label'), 'rise', 90);
     stageDisc();
-    watch(q('.cell > h3, .cell > .label'), 'rise', 80);
+    /* galerie, unreleased, agenda : dans CHAQUE bloc, le titre arrive d'abord, puis le sous-titre, puis les lignes (même ordre partout) */
+    Array.prototype.forEach.call(q('.cell'), function(c){
+      watch(Array.prototype.filter.call(c.children, function(n){ return n.matches('h3, .label'); }), 'rise', 80);
+    });
     stageGallery();
-    watch(q('#unrList .unr-item'), 'rise', 110);
-    watch(q('#agendaList .date'), 'rise', 110);
+    watch(q('#unrList .unr-item'), 'rise', 110, 160);
+    watch(q('#agendaList .date, #agendaList .note'), 'rise', 110, 160);
     watch(q('.faq-head h2, .faq-head .label, .faq-photo'), 'rise', 90);
     watch(q('.faq-item'), 'rise', 80);
     watch(q('.cta h2'), 'rise', 0);
     watch(q('.cta-btn'), 'rise', 0, 160);
   }
 
-  /* ---- parallaxe douce + fil de progression ---- */
+  /* ---- parallaxe douce ---- */
   (function(){
-    var bar=document.getElementById('progBar');
     var heroSec=document.querySelector('.hero'),
         heroMedia=document.querySelector('.hero-media'),
         heroInner=document.querySelector('.hero-inner'),
@@ -1161,7 +1157,6 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
       var y=window.scrollY||window.pageYOffset||0, vh=window.innerHeight||1,
           doc=document.documentElement,
           max=Math.max(1, doc.scrollHeight - vh);
-      if(bar) bar.style.transform='scaleX('+Math.min(1,Math.max(0,y/max)).toFixed(4)+')';
       if(!still && heroSec){
         var hh=heroSec.offsetHeight||1, pr=Math.min(1, y/hh);
         if(heroMedia) heroMedia.style.transform='translate3d(0,'+(y*.16).toFixed(1)+'px,0)';
@@ -1752,7 +1747,10 @@ a,button,label,[role="slider"],.rel,.gal-track button{touch-action:manipulation;
   function polesY(){
     var f=document.querySelector('#poles figure'); if(!f) return null;
     var margin=Math.round(Math.max(28, Math.min(56, window.innerHeight*0.05)));
-    return Math.max(0, Math.round(f.getBoundingClientRect().top + window.pageYOffset - margin));
+    /* position réelle de la photo, SANS l'effet d'apparition (la photo est décalée de 34 px et agrandie tant qu'elle n'est pas apparue :
+       la mesurer à l'écran faisait descendre trop bas, puis le recalage final « remontait d'un cran ») */
+    var top=0, n=f; while(n){ top+=n.offsetTop||0; n=n.offsetParent; }
+    return Math.max(0, Math.round(top - margin));
   }
   function goPoles(){
     var y=polesY(); if(y==null) return;
