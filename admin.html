@@ -197,11 +197,11 @@ input::placeholder{color:rgba(141,148,143,.5)}
     </div>
   </div>
   <nav class="tabs" id="tabs" role="tablist" aria-label="Sections">
-    <button class="tab" role="tab" data-p="agenda" aria-selected="true">Agenda</button>
+    <button class="tab" role="tab" data-p="refs" aria-selected="true">Références</button>
+    <button class="tab" role="tab" data-p="discography" aria-selected="false">Discographie</button>
     <button class="tab" role="tab" data-p="gallery" aria-selected="false">Galerie</button>
     <button class="tab" role="tab" data-p="unreleased" aria-selected="false">Unreleased</button>
-    <button class="tab" role="tab" data-p="discography" aria-selected="false">Discographie</button>
-    <button class="tab" role="tab" data-p="refs" aria-selected="false">Références</button>
+    <button class="tab" role="tab" data-p="agenda" aria-selected="false">Agenda</button>
     <button class="tab" role="tab" data-p="messages" aria-selected="false">Messages</button>
   </nav>
 </header>
@@ -211,12 +211,22 @@ input::placeholder{color:rgba(141,148,143,.5)}
     <p id="gateMsg">Chargement…</p>
   </div>
 
-  <section class="panel" id="p-agenda" hidden>
+  <section class="panel" id="p-refs" hidden>
     <div class="panel-head">
-      <div><h2>Agenda</h2><p>Les dates s'affichent sur le site de la plus proche à la plus lointaine.</p></div>
-      <button class="btn primary" type="button" data-add="agenda">+ Ajouter une date</button>
+      <div><h2>Références</h2><p>Logos blancs sur fond transparent, au format 800 × 386.</p></div>
+      <label class="btn primary" for="addRef">+ Ajouter un logo</label>
+      <input id="addRef" type="file" accept="image/*" multiple hidden>
     </div>
-    <div class="rows" id="l-agenda"></div>
+    <div class="rows" id="l-refs"></div>
+  </section>
+
+  <section class="panel" id="p-discography" hidden>
+    <div class="panel-head">
+      <div><h2>Discographie</h2><p>Une pochette et un fichier audio par titre. L'ordre est celui de la bande sur le site.</p></div>
+      <button class="btn primary" type="button" data-add="discography">+ Ajouter un titre</button>
+    </div>
+    <div class="rows" id="l-discography"></div>
+    <p class="hint">Sur un titre, <b>Pochette</b> accepte une image et <b>Audio</b> un MP3 (40 Mo maximum).</p>
   </section>
 
   <section class="panel" id="p-gallery" hidden>
@@ -238,23 +248,14 @@ input::placeholder{color:rgba(141,148,143,.5)}
     <p class="hint">Le morceau est lu <b>dans votre navigateur</b> : seules les <b>30 secondes choisies</b> sont envoyées, le morceau complet n'est jamais publié. Formats acceptés : MP3, WAV, M4A, FLAC.</p>
   </section>
 
-  <section class="panel" id="p-discography" hidden>
+  <section class="panel" id="p-agenda" hidden>
     <div class="panel-head">
-      <div><h2>Discographie</h2><p>Une pochette et un fichier audio par titre. L'ordre est celui de la bande sur le site.</p></div>
-      <button class="btn primary" type="button" data-add="discography">+ Ajouter un titre</button>
+      <div><h2>Agenda</h2><p>Les dates s'affichent sur le site de la plus proche à la plus lointaine.</p></div>
+      <button class="btn primary" type="button" data-add="agenda">+ Ajouter une date</button>
     </div>
-    <div class="rows" id="l-discography"></div>
-    <p class="hint">Sur un titre, <b>Pochette</b> accepte une image et <b>Audio</b> un MP3 (40 Mo maximum).</p>
+    <div class="rows" id="l-agenda"></div>
   </section>
 
-  <section class="panel" id="p-refs" hidden>
-    <div class="panel-head">
-      <div><h2>Références</h2><p>Logos blancs sur fond transparent, au format 800 × 386.</p></div>
-      <label class="btn primary" for="addRef">+ Ajouter un logo</label>
-      <input id="addRef" type="file" accept="image/*" multiple hidden>
-    </div>
-    <div class="rows" id="l-refs"></div>
-  </section>
   <section class="panel" id="p-messages" hidden>
     <div class="panel-head">
       <div><h2>Messages</h2><p>Les demandes envoyées depuis le formulaire du site. Chaque message est conservé ici, même si l'e-mail n'a pas pu partir.</p></div>
@@ -301,9 +302,9 @@ input::placeholder{color:rgba(141,148,143,.5)}
     if(lock.hidden){ flash('Session expirée : reconnectez-vous.','err'); setTimeout(function(){ location.reload(); }, 1600); }
   });
 
-  var COLS = ['agenda','gallery','unreleased','discography','refs'];
+  var COLS = ['refs','discography','gallery','unreleased','agenda'];
   var PANELS = COLS.concat(['messages']);
-  var db=null, assets=null, state={}, current='agenda';
+  var db=null, assets=null, state={}, current='refs';
   var gate=document.getElementById('gate'), gateMsg=document.getElementById('gateMsg');
 
   /* ---------- utilitaires ---------- */
