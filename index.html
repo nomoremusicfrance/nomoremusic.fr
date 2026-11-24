@@ -1424,7 +1424,8 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
   }
   /* bandes défilantes (discographie, galerie) : défilement libre et doux, sans aimant ni recalage ; à la souris, le glisser garde son élan.
      Galerie : défilement automatique d'un visuel toutes les 3 secondes, qui s'efface dès qu'on touche, survole ou défile. */
-  function stripFx(sc, itemsOf){
+  function stripFx(sc, itemsOf, opts){
+    opts=opts||{};
     var anim=null, down=false, lastScroll=0, samples=[];
     var calm=window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
     function maxL(){ return Math.max(0, sc.scrollWidth - sc.clientWidth); }
@@ -1470,6 +1471,17 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
       next: function(){
         if(down || anim || Date.now()-lastScroll<500) return;
         if(sc.scrollLeft>=maxL()-4){ go(0, 1100); return; }
+        if(opts.align && opts.align()){
+          /* mobile : on avance d'une photo à la fois, en s'arrêtant toujours sur un alignement net
+             (2 ou 3 photos entières dans la largeur, jamais une photo coupée sur le bord) */
+          var st0=stepPx();
+          if(st0){
+            var k=Math.round(sc.scrollLeft/st0), to=clamp((k+1)*st0);
+            if(to-sc.scrollLeft<6) to=clamp((k+2)*st0);
+            if(to-sc.scrollLeft<6){ go(0, 1100); return; }
+            go(to, 900); return;
+          }
+        }
         var st=stepPx(); if(st) go(sc.scrollLeft + st, 900);
       }
     };
@@ -1520,18 +1532,24 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
         + parseFloat(getComputedStyle(track).columnGap||getComputedStyle(track).gap||0);
     }
     var prog=bindProg(vp, pbar);
-    var fxGal=stripFx(vp, function(){ return track.children; });
+    var fxGal=stripFx(vp, function(){ return track.children; }, { align:function(){ return window.matchMedia('(max-width:900px)').matches; } });
     function atEnd(){ return vp.scrollLeft + vp.clientWidth >= vp.scrollWidth - 4; }
     function shift(){ fxGal.next(); }
     function reset(){ vp.scrollLeft=0; prog(); }
-    function stop(){ if(timer){ clearInterval(timer); timer=null; } }
-    function start(){ if(still || !inView) return; stop(); timer=setInterval(shift, 3000); }
+    var first=null;
+    function stop(){ if(timer){ clearInterval(timer); timer=null; } if(first){ clearTimeout(first); first=null; } }
+    /* à l'arrivée sur la galerie, la première photo suivante arrive vite (1,2 s) ; ensuite toutes les 3 s */
+    function start(quick){
+      if(still || !inView) return; stop();
+      if(quick===true){ first=setTimeout(function(){ first=null; shift(); timer=setInterval(shift, 3000); }, 1200); }
+      else timer=setInterval(shift, 3000);
+    }
     /* la main reprend : pause, puis le défilement automatique repart après un temps calme */
     function hold(){ stop(); clearTimeout(resume); resume=setTimeout(start, 4500); }
     if('IntersectionObserver' in window){
       new IntersectionObserver(function(es){
         es.forEach(function(e){
-          if(e.isIntersecting && !inView){ inView=true; prog(); start(); }
+          if(e.isIntersecting && !inView){ inView=true; prog(); start(true); }
           else if(!e.isIntersecting && inView){ inView=false; stop(); }
         });
       }, {threshold:.25}).observe(vp);
