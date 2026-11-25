@@ -1205,6 +1205,11 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
   })();
 
   REFRESH.push(function(){ renderRefs(); revealRefs(); setTimeout(stageGallery,0); setTimeout(stageDisc,0); });
+  /* si le contenu est redessiné après le chargement, l'agenda et les unreleased réapparaissent en douceur comme les autres blocs (sinon ils surgiraient d'un coup) */
+  REFRESH.push(function(){ setTimeout(function(){
+    watch(q('#unrList .unr-item'), 'rise', 110, 160);
+    watch(q('#agendaList .date, #agendaList .note'), 'rise', 110, 160);
+  },0); });
   renderRefs(); revealRefs();
   /* les listes sont construites plus bas dans le script : on met en scène après */
   setTimeout(stage, 0);
