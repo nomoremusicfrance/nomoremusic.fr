@@ -1849,6 +1849,16 @@ a[x-apple-data-detectors],a[x-apple-data-detectors]:hover{color:inherit!importan
     setMenu(false);
   }, true);
   document.addEventListener('keydown', function(e){ if(e.key==='Escape') setMenu(false); });
+  /* le logo ramène à l'accueil : il ferme le menu s'il est ouvert, puis remonte en haut de page */
+  var markLink=document.querySelector('.hdr .mark');
+  if(markLink) markLink.addEventListener('click', function(e){
+    e.preventDefault(); e.stopImmediatePropagation();
+    var wasOpen=doc.classList.contains('nav-open');
+    if(wasOpen) setMenu(false);
+    var calm=window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var y=window.pageYOffset||0;
+    if(y>2) window.scrollTo({top:0, behavior:(calm||wasOpen)?'auto':'smooth'});
+  });
 
   /* ---- « Découvrir Nomore » : on arrive pile sur les deux pôles, photos alignées, à une même marge sous le bord haut ---- */
   function polesY(){
